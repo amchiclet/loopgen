@@ -79,14 +79,9 @@ grammar = '''
 # DEC_NUMBER: /0|[1-9]\d*/i
 
 
-from abstract_ast import Assignment, Access, AbstractLoop, Program, get_accesses, Declaration, Const, Literal, Op, LoopShape, get_loops, get_accesses, LoopShapeBuilder, Hex
+from pattern_ast import Assignment, Access, AbstractLoop, Program, get_accesses, Declaration, Const, Literal, Op, LoopShape, get_loops, get_accesses, LoopShapeBuilder, Hex
 
 class TreeSimplifier(Transformer):
-    def __init__(self, start_node_id=0):
-        self.current_node_id = start_node_id
-    def next_node_id(self):
-        self.current_node_id += 1
-        return self.current_node_id
     def dimension(self, args):
         if len(args) > 0:
             return int(args[0])
@@ -94,20 +89,19 @@ class TreeSimplifier(Transformer):
             return None
     def declaration(self, args):
         return args[0]
-        # n_dimensions = len(args) - 1
-        # return Declaration(args[0], n_dimensions, self.next_node_id())    
+
     def param(self, args):
         sizes = args[1:]
         n_dimensions = len(args) - 1
-        return Declaration(args[0], n_dimensions, sizes, is_local=False, node_id=self.next_node_id())
+        return Declaration(args[0], n_dimensions, sizes, is_local=False)
     def local(self, args):
         sizes = args[1:]
         n_dimensions = len(args) - 1
-        return Declaration(args[0], n_dimensions, sizes, is_local=True, node_id=self.next_node_id())
+        return Declaration(args[0], n_dimensions, sizes, is_local=True)
     def array(self, args):
         return ''.join(args)
     def const(self, args):
-        return Const(args[0], self.next_node_id())
+        return Const(args[0])
     def scalar(self, args):
         return ''.join(args)
     def index(self, args):
@@ -115,15 +109,15 @@ class TreeSimplifier(Transformer):
     def literal(self, args):
         return args[0]
     def float_literal(self, args):
-        return Literal(float, float(args[0]), self.next_node_id())
+        return Literal(float, float(args[0]))
     def int_literal(self, args):
-        return Literal(int, int(args[0]), self.next_node_id())
+        return Literal(int, int(args[0]))
     def hex_literal(self, args):
-        return Hex(args[0], self.next_node_id())
+        return Hex(args[0])
     def scalar_access(self, args):
-        return Access(args[0], node_id=self.next_node_id())
+        return Access(args[0])
     def array_access(self, args):
-        return Access(args[0], args[1:], self.next_node_id())
+        return Access(args[0], args[1:])
     def access(self, args):
         return args[0]
 
@@ -132,56 +126,56 @@ class TreeSimplifier(Transformer):
     def conditional(self, args):
         if len(args) == 1:
             return args[0]
-        return Op('?:', args, self.next_node_id())
+        return Op('?:', args)
     def logical_or(self, args):
         if len(args) == 1:
             return args[0]
-        return Op('||', args, self.next_node_id())
+        return Op('||', args)
     def logical_and(self, args):
         if len(args) == 1:
             return args[0]
-        return Op('&&', args, self.next_node_id())
+        return Op('&&', args)
     def equality(self, args):
         if len(args) == 1:
             return args[0]
-        return Op(args[1], [args[0], args[2]], self.next_node_id())
+        return Op(args[1], [args[0], args[2]])
     def relational(self, args):
         if len(args) == 1:
             return args[0]
-        return Op(args[1], [args[0], args[2]], self.next_node_id())
+        return Op(args[1], [args[0], args[2]])
     def additive(self, args):
         if len(args) == 1:
             return args[0]
-        return Op(args[1], [args[0], args[2]], self.next_node_id())
+        return Op(args[1], [args[0], args[2]])
     def multiplicative(self, args):
         if len(args) == 1:
             return args[0]
-        return Op(args[1], [args[0], args[2]], self.next_node_id())
+        return Op(args[1], [args[0], args[2]])
     def bitwise_shift(self, args):
         if len(args) == 1:
             return args[0]
-        return Op(args[1], [args[0], args[2]], self.next_node_id())
+        return Op(args[1], [args[0], args[2]])
     def bitwise_or(self, args):
         if len(args) == 1:
             return args[0]
-        return Op('|', args, self.next_node_id())
+        return Op('|', args)
     def bitwise_xor(self, args):
         if len(args) == 1:
             return args[0]
-        return Op('^', args, self.next_node_id())
+        return Op('^', args)
     def bitwise_and(self, args):
         if len(args) == 1:
             return args[0]
-        return Op('&', args, self.next_node_id())
+        return Op('&', args)
     def unary(self, args):
         if len(args) == 1:
             return args[0]
-        return Op(args[0], [args[1]], self.next_node_id())
+        return Op(args[0], [args[1]])
     def atom(self, args):
         return args[0]
 
     def assignment(self, args):
-        return Assignment(args[0], args[1], self.next_node_id())
+        return Assignment(args[0], args[1])
     def statement(self, args):
         stmt = args[0]
         return stmt
@@ -191,14 +185,13 @@ class TreeSimplifier(Transformer):
         return args[0]
     def single_loop_shape(self, args):
         loop_var = args[0].var
-        default_greater_eq = Access(f'{loop_var}_greater_eq', node_id=self.next_node_id())
-        default_less_eq = Access(f'{loop_var}_less_eq', node_id=self.next_node_id())
-        default_step = Literal(int, 1, self.next_node_id())
+        default_greater_eq = Access(f'{loop_var}_greater_eq')
+        default_less_eq = Access(f'{loop_var}_less_eq')
+        default_step = Literal(int, 1)
         return LoopShape(args[0],
                          default_greater_eq,
                          default_less_eq,
-                         default_step,
-                         self.next_node_id())
+                         default_step)
     def multi_loop_shape(self, args):
         return args[0]
     def loop_shape_parts(self, args):
@@ -210,15 +203,13 @@ class TreeSimplifier(Transformer):
                 merged.merge(loop_shape_builder)
         assert(merged is not None)
         assert(merged.loop_var is not None)
-        # print(merged)
         loop_var = merged.loop_var.var
-        default_greater_eq = Access(f'{loop_var}_greater_eq', node_id=self.next_node_id())
-        default_less_eq = Access(f'{loop_var}_less_eq', node_id=self.next_node_id())
-        default_step = Literal(int, 1, self.next_node_id())
+        default_greater_eq = Access(f'{loop_var}_greater_eq')
+        default_less_eq = Access(f'{loop_var}_less_eq')
+        default_step = Literal(int, 1)
         return merged.build(default_greater_eq,
                             default_less_eq,
-                            default_step,
-                            self.next_node_id())
+                            default_step)
     def loop_shape_part(self, args):
         loop_shape_builder = LoopShapeBuilder()
         if len(args) == 1:
@@ -232,7 +223,7 @@ class TreeSimplifier(Transformer):
     def abstract_loop(self, args):
         loop_shapes = args[0]
         body = args[1:]
-        loop = AbstractLoop(loop_shapes, body, self.next_node_id())
+        loop = AbstractLoop(loop_shapes, body)
         return loop
     def start(self, args):
         decls = []
@@ -253,7 +244,7 @@ class TreeSimplifier(Transformer):
         for decl in decls:
             non_consts.add(decl.name)
         for stmt in body:
-            for _, loop in get_loops(stmt).items():
+            for loop in get_loops(stmt):
                 for shape in loop.loop_shapes:
                     non_consts.add(shape.loop_var.var)
         consts_set = set()
@@ -261,17 +252,17 @@ class TreeSimplifier(Transformer):
             for access in get_accesses(stmt):
                 if access.var not in non_consts:
                     consts_set.add(access.var)
-        consts = [Const(name, self.next_node_id())
+        consts = [Const(name)
                   for name in sorted(list(consts_set))]
-        return Program(decls, body, consts, self.next_node_id())
+        return Program(decls, body, consts)
 
-def parse_str(code, node_id=0):
+def parse_str(code):
     parser = Lark(grammar)
     lark_ast = parser.parse(code)
-    tree_simplifier = TreeSimplifier(node_id)
+    tree_simplifier = TreeSimplifier()
     abstract_ast = tree_simplifier.transform(lark_ast)
-    return abstract_ast, tree_simplifier.next_node_id()
+    return abstract_ast
 
-def parse_file(path, node_id=0):
+def parse_file(path):
     with open(path) as f:
-        return parse_str(f.read(), node_id)
+        return parse_str(f.read())
