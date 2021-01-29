@@ -1,0 +1,4 @@
+application name=LinAlg
+batch name=$batch
+code name=$code
+codelet name=$codelet
