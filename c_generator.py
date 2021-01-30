@@ -161,7 +161,7 @@ class CGenerator:
     def checksum(self):
         return self.wrapper('float', 'checksum', 'checksum_inner')
     def kernel(self):
-        return self.wrapper('unsigned long long', 'kernel', 'core')
+        return self.wrapper('int', 'kernel', 'core')
     def declare_core(self):
         params = []
         for name in self.sorted_decl_names:
@@ -296,7 +296,7 @@ class CGenerator:
             decl = self.decl_map[name]
             if not decl.is_local:
                 params.append(self.array_param('float', name, decl.sizes))
-        lines.append(f'{ws}unsigned long long core({", ".join(params)}) {{')
+        lines.append(f'{ws}int core({", ".join(params)}) {{')
         self.indent += 1
         ws = spaces(self.indent)
         for name in self.sorted_decl_names:
@@ -304,14 +304,8 @@ class CGenerator:
             if decl.is_local:
                 local_decl = self.array_local('float', name, decl.sizes)
                 lines.append(f'{ws}{local_decl};')
-        lines.append(f'{ws}struct timespec before, after;')
-        lines.append(f'{ws}clock_gettime(CLOCK_MONOTONIC, &before);')
-        # lines.append(self.c_test_program.pprint(self.indent))
         lines.append(self.pattern.cprint(self.indent))
-        lines.append(f'{ws}clock_gettime(CLOCK_MONOTONIC, &after);')
-        lines.append(f'{ws}unsigned long long duration = (after.tv_sec - before.tv_sec) * 1e9;')
-        lines.append(f'{ws}duration += after.tv_nsec - before.tv_nsec;')
-        lines.append(f'{ws}return duration;')
+        lines.append(f'{ws}return 0;')
         self.indent -= 1
         ws = spaces(self.indent)
         lines.append(f'{ws}}}')
@@ -333,11 +327,7 @@ class CGenerator:
             f.write('\n\n')
             f.write(self.init_inner())
             f.write('\n\n')
-            f.write(self.checksum_inner())
-            f.write('\n\n')
             f.write(self.init())
-            f.write('\n\n')
-            f.write(self.checksum())
             f.write('\n\n')
             f.write(self.kernel())
             f.write('\n\n')

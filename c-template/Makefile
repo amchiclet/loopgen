@@ -5,18 +5,21 @@ LDFLAGS=-g -lm
 EXEC=wrapper
 LIBS=-lmeasure
 # For now
-LIBPATH=../../../../nr-codelets/codeletProbe
+LIBPATH=../../../lib
 
-all: \$(EXEC)
+all: $(EXEC)
 
-\$(EXEC): codelet.o driver.o
-	\$(CC) -o \$@ \$^ \$(LDFLAGS) \$(LIBS) -L\$(LIBPATH)
+$(EXEC): core.o wrapper.o main.o
+	$(CC) -o $@ $^ $(LDFLAGS) $(LIBS) -L$(LIBPATH)
 
-driver.o: driver.c
-	\$(CC) -g -o \$@ \$< -c -O0
+main.o: main.c
+	$(CC) -g -o $@ $< -c -O0
+
+wrapper.o: wrapper.c
+	$(CC) -g -o $@ $< -c -O0
 
 %.o: %.s %.c
-	\$(CC) -o \$@ \$< \$(CFLAGS)
+	$(CC) -o $@ $< $(CFLAGS)
 
 clean:
-	rm -rf *.o \$(EXEC)
+	rm -rf *.o $(EXEC)
