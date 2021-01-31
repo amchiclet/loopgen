@@ -68,7 +68,7 @@ grammar = '''
 # DEC_NUMBER: /0|[1-9]\d*/i
 
 
-from skeleton_ast import AbstractLoop, Assignment, Expr, Access, Action, Program, Declaration, Const, Literal, Hex, Paren
+from skeleton_ast import AbstractLoop, Assignment, Expr, Access, Action, Program, Declaration, Const, Literal, Hex, Paren, is_hole
 
 class TreeSimplifier(Transformer):
     def dimension(self, args):
@@ -162,7 +162,7 @@ class TreeSimplifier(Transformer):
         consts_set = set()
         for stmt in body:
             for access in get_accesses(stmt):
-                if access.var not in non_consts:
+                if access.var not in non_consts and not is_hole(access.var):
                     consts_set.add(access.var)
         consts = [Const(name)
                   for name in sorted(list(consts_set))]

@@ -5,6 +5,8 @@ space_per_indent = 2
 class Replacer:
     def should_replace(self, node):
         raise NotImplementedError(type(self))
+    def should_skip(self, node):
+        raise NotImplementedError(type(self))
     def replace(self, node):
         raise NotImplementedError(type(self))
 
@@ -72,12 +74,15 @@ class Assignment(Node):
         self.lhs, self.rhs = replace_each([self.lhs, self.rhs], replacer)
 
 def replace(i, replacer):
+    if replacer.should_skip(i):
+        return i
+
     if replacer.should_replace(i):
         return replacer.replace(i)
-    else:
-        if isinstance(i, Node):
-            i.replace(replacer)
-        return i
+
+    if isinstance(i, Node):
+        i.replace(replacer)
+    return i
 
 def replace_each(l, replacer):
     return [replace(i, replacer) for i in l]
@@ -199,6 +204,8 @@ def populate(program, populate_function):
 class Populator(Replacer):
     def __init__(self, populate_function):
         self.populate_function = populate_function
+    def should_skip(self, node):
+        return type(node) in [Declaration, Const]
     def should_replace(self, name):
         return type(name) == str and is_hole(name)
     def replace(self, name):
