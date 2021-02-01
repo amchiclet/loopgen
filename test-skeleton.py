@@ -12,7 +12,7 @@ declare B[][];
 declare C[][];
 
 for [i, j, k] {
-  `x`[i][j] = `x`[i][j] + `_`[i][k] * `_`[k][j];
+  `_`[i][j] = `_`[i][j] + `_`[i][k] * `_`[k][j];
 }
 """
 
@@ -21,7 +21,7 @@ skeleton = parse_skeleton(skeleton_code)
 print(skeleton.pprint())
 
 # pattern
-populator = Populator(['A', 'B', 'C'], is_finite=True)
+populator = Populator(['A', 'B', 'C'])
 maybe_pattern = populate(skeleton, populator.populate)
 maybe_pattern_code = maybe_pattern.pprint()
 pattern = parse_pattern(maybe_pattern_code)
@@ -32,8 +32,6 @@ var_map = VariableMap()
 instance = create_instance(pattern, var_map)
 print(instance.pprint())
 print(instance.pattern.cprint())
-
-exit()
 
 # C code generation
 batch = 'mm_batch'

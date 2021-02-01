@@ -4,7 +4,7 @@ def parse(hole_name):
     if ':' in hole_name:
         i = hole_name.index(':')
         name = hole_name[1:i]
-        family = hole_name[i:-1]
+        family = hole_name[i+1:-1]
     else:
         name = hole_name[1:-1]
         family = '_'
