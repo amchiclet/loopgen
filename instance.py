@@ -43,7 +43,7 @@ class VariableMap:
     def get_max(self, var):
         if var not in self.limits:
             return self.default_max
-        max_val = self.limits[var].max_valm
+        max_val = self.limits[var].max_val
         return max_val if max_val is not None else self.default_max
     def clone(self):
         cloned = VariableMap(self.default_min, self.default_max)
