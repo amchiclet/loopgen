@@ -1,4 +1,4 @@
-CC=gcc
+CC=icc
 CFLAGS=-O3 -Wall -fPIC -I.
 LDFLAGS=-ldl -rdynamic 
 SEP_HEADER=/opt/intel/sep/include
