@@ -33,11 +33,7 @@ def data_file(codelet_dir):
     return f'{codelet_dir}/codelet.data'
 
 def prepare_output_dir(dst_dir):
-    copytree('c-template', dst_dir)
-
-# def generate_directories(batch, code, codelet, base='.'):
-#     path = Path(get_codelet_dir(batch, code, codelet, base))
-#     path.mkdir(parents=True, exist_ok=True)
+    copytree('c-template', dst_dir, dirs_exist_ok=True)
 
 def generate_codelet(batch, code, codelet, n_iterations, instance):
     dst_dir = codelet_dir(batch, code, codelet)

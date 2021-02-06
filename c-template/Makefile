@@ -1,4 +1,4 @@
-CC=gcc
+CC=icc
 CFLAGS=-c -g -std=c99 -O3 -xSSE4.2
 CFLAGS=-c -g -std=c99 -O3
 LDFLAGS=-g -lm
