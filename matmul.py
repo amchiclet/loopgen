@@ -52,11 +52,13 @@ def generate(arrays, indices):
     print(instance.pattern.cprint())
 
     # C code generation
-    batch = 'batch'
-    code = 'matmul'
-    label = f'M{indices.name}a{arrays.name}'
+    application = 'LoopGen'
+    batch = 'matmul'
+    code_prefix = f'M{indices.name}a{arrays.name}'
+    code = f'{code_prefix}.c'
+    codelet = f'{code_prefix}850.c_de'
     n_iterations = 10
-    generate_codelet(batch, code, label, n_iterations, instance)
+    generate_codelet(application, batch, code, codelet, n_iterations, instance)
 
 from dataclasses import dataclass
 
