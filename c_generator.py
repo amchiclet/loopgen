@@ -12,6 +12,12 @@ def frand():
   return min + scale * (max - min);
 }"""
 
+def drand():
+    return """double drand(double min, double max) {
+  double scale = rand() / (double) RAND_MAX;
+  return min + scale * (max - min);
+}"""
+
 def irand():
     return """float irand(int min, int max) {
   return min + (rand() % (max - min));
@@ -31,6 +37,8 @@ def include():
 
 def spaces(indent):
     return '  ' * indent
+
+default_type = 'double'
 
 # TODO: test program needs to be a different program
 class CGenerator:
@@ -69,7 +77,7 @@ class CGenerator:
             array = self.array_sizes[array_name]
             sizes = [max_index + 1 for max_index in array.max_indices]
             if not array.is_local:
-                lines.append(self.array_decl('float', array_name, sizes))
+                lines.append(self.array_decl(default_type, array_name, sizes))
         self.indent -= 1
         lines.append('};')
         return '\n'.join(lines)
@@ -99,14 +107,14 @@ class CGenerator:
             array = self.array_sizes[array_name]
             sizes = [max_index + 1 for max_index in array.max_indices]
             if not array.is_local:
-                params.append(self.array_param('float', array_name, sizes))
+                params.append(self.array_param(default_type, array_name, sizes))
 
-        lines.append(f'{ws}float checksum_inner({", ".join(params)}) {{')
+        lines.append(f'{ws}{default_type} checksum_inner({", ".join(params)}) {{')
 
         self.indent += 1
         ws = spaces(self.indent)
 
-        lines.append(f'{ws}float total = 0.0;')
+        lines.append(f'{ws}{default_type} total = 0.0;')
 
         for array_name in sorted(self.array_sizes.keys()):
             array = self.array_sizes[array_name]
@@ -138,7 +146,7 @@ class CGenerator:
             array = self.array_sizes[array_name]
             if not array.is_local:
                 if array.n_dimensions == 0 and scalar_as_array:
-                    params.append(f'*(float (*)[1])data->{array_name}')
+                    params.append(f'*({default_type} (*)[1])data->{array_name}')
                 else:
                     params.append(f'*data->{array_name}')
 
@@ -159,7 +167,7 @@ class CGenerator:
     def init(self):
         return self.wrapper('int', 'init', 'init_inner', scalar_as_array=True)
     def checksum(self):
-        return self.wrapper('float', 'checksum', 'checksum_inner')
+        return self.wrapper(default_type, 'checksum', 'checksum_inner')
     def kernel(self):
         return self.wrapper('int', 'kernel', 'core')
     def declare_core(self):
@@ -167,7 +175,7 @@ class CGenerator:
         for name in self.sorted_decl_names:
             decl = self.decl_map[name]
             if not decl.is_local:
-                params.append(self.array_param('float', name, decl.sizes))
+                params.append(self.array_param(default_type, name, decl.sizes))
         ws = spaces(self.indent)
         return f'{ws}unsigned long long core({", ".join(params)});'
     def array_allocate(self, ty, array_names, sizes):
@@ -229,7 +237,7 @@ class CGenerator:
             if not array.is_local:
                 lhs = f'data->{array_name}'
                 sizes = [max_index + 1 for max_index in array.max_indices]
-                lines.append(self.array_allocate('float', [lhs], sizes))
+                lines.append(self.array_allocate(default_type, [lhs], sizes))
         lines.append(f'{ws}return (void*)data;')
         self.indent -= 1
         lines.append('}')
@@ -246,10 +254,10 @@ class CGenerator:
             array = self.array_sizes[array_name]
             if not array.is_local:
                 if array.n_dimensions == 0:
-                    params.append(self.array_param('float', array_name, [1]))
+                    params.append(self.array_param(default_type, array_name, [1]))
                 else:
                     sizes = [max_index + 1 for max_index in array.max_indices]
-                    params.append(self.array_param('float', array_name, sizes))
+                    params.append(self.array_param(default_type, array_name, sizes))
     
         # function header
         lines.append(f'int init_inner({", ".join(params)}) {{')
@@ -259,18 +267,18 @@ class CGenerator:
         ws = spaces(self.indent)
         # lines.append(f'{ws}allocate();')
 
-        init_value = 'frand(0.0, 1.0)'
+        init_value = 'drand(0.0, 1.0)'
         for array_name in sorted(self.array_sizes.keys()):
             array = self.array_sizes[array_name]
             if not array.is_local:
                 # for scalars, the initialization treats it as a one element array
                 if array.n_dimensions == 0:
-                    lines.append(self.array_init('float', [array_name],
+                    lines.append(self.array_init(default_type, [array_name],
                                                  [0], [0],
                                                  init_value))
                 else:
                     loop_ends = [size - 1 for size in sizes]
-                    lines.append(self.array_init('float', [array_name],
+                    lines.append(self.array_init(default_type, [array_name],
                                                  array.min_indices, array.max_indices,
                                                  init_value))
 
@@ -295,14 +303,14 @@ class CGenerator:
         for name in self.sorted_decl_names:
             decl = self.decl_map[name]
             if not decl.is_local:
-                params.append(self.array_param('float', name, decl.sizes))
+                params.append(self.array_param(default_type, name, decl.sizes))
         lines.append(f'{ws}int core({", ".join(params)}) {{')
         self.indent += 1
         ws = spaces(self.indent)
         for name in self.sorted_decl_names:
             decl = self.decl_map[name]
             if decl.is_local:
-                local_decl = self.array_local('float', name, decl.sizes)
+                local_decl = self.array_local(default_type, name, decl.sizes)
                 lines.append(f'{ws}{local_decl};')
         lines.append(self.pattern.cprint(self.indent))
         lines.append(f'{ws}return 0;')
@@ -322,6 +330,8 @@ class CGenerator:
             f.write(frand())
             f.write('\n\n')
             f.write(irand())
+            f.write('\n\n')
+            f.write(drand())
             f.write('\n\n')
             f.write(self.allocate())
             f.write('\n\n')

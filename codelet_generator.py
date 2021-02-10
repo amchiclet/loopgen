@@ -20,8 +20,8 @@ def meta_contents(batch, code, codelet):
 def data_contents(n_iterations):
     return f'{n_iterations} 0\n'
 
-def codelet_dir(batch, code, codelet, base='.'):
-    return f'{base}/{batch}/{code}/{codelet}'
+def codelet_dir(application, batch, code, codelet, base='.'):
+    return f'{base}/{application}/{batch}/{code}/{codelet}'
 
 def meta_file(codelet_dir):
     return f'{codelet_dir}/codelet.meta'
@@ -35,8 +35,8 @@ def data_file(codelet_dir):
 def prepare_output_dir(dst_dir):
     copytree('c-template', dst_dir, dirs_exist_ok=True)
 
-def generate_codelet(batch, code, codelet, n_iterations, instance):
-    dst_dir = codelet_dir(batch, code, codelet)
+def generate_codelet(application, batch, code, codelet, n_iterations, instance):
+    dst_dir = codelet_dir(application, batch, code, codelet)
     prepare_output_dir(dst_dir)
 
     Path(meta_file(dst_dir)).write_text(meta_contents(batch, code, codelet))
