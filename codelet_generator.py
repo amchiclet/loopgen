@@ -7,7 +7,7 @@ def conf_contents(codelet):
             f'<codelet>\n'
             f'  <language value="C"/>\n'
             f'  <label name="{codelet}"/>\n'
-            f'  <function name="codelet"/>\n'
+            f'  <function name="core"/>\n'
             f'  <binary name="wrapper"/>\n'
             f'</codelet>\n')
 
