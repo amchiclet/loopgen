@@ -6,13 +6,13 @@ from random import choice
 from codelet_generator import generate_codelet
 from populator import Populator, IncrementalChoice
 
-matmul_code = """
+matadd_code = """
 declare A[][];
 declare B[][];
 declare C[][];
 
-for [i, j, k] {
-  A[`x:index`][`y:index`] = A[`x:index`][`y:index`] + `_:array`[`x:index`][k] * `_:array`[k][`y:index`];
+for [i, j] {
+  `_:array`[`x:index`][`y:index`] = `_:array`[`x:index`][`y:index`] + `_:array`[`x:index`][`y:index`];
 }
 """
 
@@ -26,7 +26,7 @@ def set_exact_loop_bounds(var_map, loop_var, min_val, max_val):
     
 def generate(arrays, indices):
     # skeleton
-    skeleton = parse_skeleton(matmul_code)
+    skeleton = parse_skeleton(matadd_code)
     print(skeleton.pprint())
 
     # pattern
@@ -44,7 +44,7 @@ def generate(arrays, indices):
 
     # instance
     var_map = VariableMap()
-    for loop_var in ['i', 'j', 'k']:
+    for loop_var in ['i', 'j']:
         set_exact_loop_bounds(var_map, loop_var, 0, 849)
 
     instance = create_instance(pattern, var_map)
@@ -53,8 +53,8 @@ def generate(arrays, indices):
 
     # C code generation
     application = 'LoopGen'
-    batch = 'matmul'
-    code_prefix = f'M{indices.name}a{arrays.name}'
+    batch = 'matadd'
+    code_prefix = f'A{indices.name}{arrays.name}'
     code = f'{code_prefix}.c'
     codelet = f'{code_prefix}850.c_de'
     n_iterations = 10
@@ -72,11 +72,10 @@ index_pools = [
     Pool(['j', 'i'], 'L')
 ]
 array_pools = [
-    Pool(['A', 'A'], 'aa'),
-    Pool(['A', 'B'], 'ab'),
-    Pool(['B', 'A'], 'ba'),
-    Pool(['B', 'B'], 'bb'),
-    Pool(['B', 'C'], 'bc')
+    Pool(['A', 'A', 'A'], 'aaa'),
+    Pool(['A', 'B', 'A'], 'aba'),
+    Pool(['A', 'B', 'B'], 'abb'),
+    Pool(['A', 'B', 'C'], 'abc'),
 ]
 
 for indices in index_pools:

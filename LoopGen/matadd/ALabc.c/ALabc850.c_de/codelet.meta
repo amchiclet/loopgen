@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=matadd
+code name=ALabc.c
+codelet name=ALabc850.c_de

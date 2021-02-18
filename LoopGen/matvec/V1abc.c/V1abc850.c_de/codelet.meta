@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=matvec
+code name=V1abc.c
+codelet name=V1abc850.c_de
