@@ -22,8 +22,9 @@ grammar = '''
     expr: action+
     action: op? atom
     op: CONDITIONAL | LOGICAL | BITWISE | EQUAL | RELATION | BITWISE_SHIFT | ADDITIVE | MULTIPLICATIVE | UNARY
-    atom: access | paren
+    atom: access | paren | expr_hole
     paren: "(" expr ")"
+    expr_hole: "#" CNAME (":" CNAME)? "#"
 
     access: scalar_access | array_access | literal
     scalar_access: scalar
@@ -49,7 +50,7 @@ grammar = '''
 
     HEX_NUMBER: /0x[\\da-f]*/i
 
-    COMMENT: /#[^\\n]*/
+    COMMENT: /##[^\\n]*/
     %import common.WS
     %import common.LETTER
     %import common.DIGIT
@@ -71,7 +72,7 @@ grammar = '''
 # DEC_NUMBER: /0|[1-9]\d*/i
 
 
-from skeleton_ast import AbstractLoop, Assignment, Expr, Access, Action, Program, Declaration, Const, Literal, Hex, Paren, NameHole, StatementHole, Var, Hole
+from skeleton_ast import AbstractLoop, Assignment, Expr, Access, Action, Program, Declaration, Const, Literal, Hex, Paren, NameHole, StatementHole, ExpressionHole, Var, Hole
 
 class TreeSimplifier(Transformer):
     def dimension(self, args):
@@ -150,6 +151,12 @@ class TreeSimplifier(Transformer):
         elif len(args) == 2:
             return StatementHole(args[0], args[1])
         assert(False)
+    def expr_hole(self, args):
+        if len(args) == 1:
+            return ExpressionHole(args[0], '_')
+        elif len(args) == 2:
+            return ExpressionHole(args[0], args[1])
+        assert(False)
 
     def loop_vars(self, args):
         return args
@@ -191,19 +198,18 @@ class TreeSimplifier(Transformer):
                   for name in sorted(list(consts_set))]
         return Program(decls, body, consts)
 
-def parse_str(code):
+def parse_str(code, start="start"):
     parser = Lark(grammar)
-    lark_ast = parser.parse(code)
+    lark_ast = parser.parse(code, start=start)
     tree_simplifier = TreeSimplifier()
     abstract_ast = tree_simplifier.transform(lark_ast)
     return abstract_ast
 
 def parse_stmt_str(code):
-    parser = Lark(grammar)
-    lark_ast = parser.parse(code, start=parser.statement)
-    tree_simplifier = TreeSimplifier()
-    abstract_ast = tree_simplifier.transform(lark_ast)
-    return abstract_ast
+    return parse_str(code, "statement")
+
+def parse_expr_str(code):
+    return parse_str(code, "expr")
 
 def parse_file(path):
     with open(path) as f:

@@ -93,11 +93,22 @@ class Hole(Node):
 class NameHole(Hole):
     def pprint(self, indent=0):
         return '_'
+    def replace(self, replacer):
+        pass
 
 class StatementHole(Hole):
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
         return f'{ws}$'
+    def replace(self, replacer):
+        pass
+
+class ExpressionHole(Hole):
+    def pprint(self, indent=0):
+        ws = space_per_indent * indent * ' '
+        return f'{ws}#'
+    def replace(self, replacer):
+        pass
 
 def replace(i, replacer):
     if replacer.should_skip(i):
@@ -227,7 +238,16 @@ def populate(program, populate_function):
     replacer = Populator(populate_function)
     return replace(program, replacer)
 
-def populate_v2(program, replacer):
+def populate_name(program, populate_function):
+    replacer = NamePopulator(populate_function)
+    return replace(program, replacer)
+
+def populate_stmt(program, populate_function):
+    replacer = StatementPopulator(populate_function)
+    return replace(program, replacer)
+
+def populate_expr(program, populate_function):
+    replacer = ExpressionPopulator(populate_function)
     return replace(program, replacer)
 
 class Populator(Replacer):
@@ -235,9 +255,21 @@ class Populator(Replacer):
         self.populate_function = populate_function
     def should_skip(self, node):
         return type(node) in [Declaration, Const]
-    def should_replace(self, name):
-        return is_name_hole(name) or is_stmt_hole(name)
+    def should_replace(self, node):
+        raise NotImplementedError('Populator::should_replace')
     def replace(self, name):
         return self.populate_function(name)
+
+class StatementPopulator(Populator):
+    def should_replace(self, node):
+        return type(node) == StatementHole
+
+class ExpressionPopulator(Populator):
+    def should_replace(self, node):
+        return type(node) == ExpressionHole
+
+class NamePopulator(Populator):
+    def should_replace(self, node):
+        return type(node) == NameHole
 
     
