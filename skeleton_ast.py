@@ -13,6 +13,8 @@ class Replacer:
 class Node:
     def replace(self, replacer):
         raise NotImplementedError(type(self))
+    def is_hole(self):
+        return False
 
 class Const(Node):
     def __init__(self, name):
@@ -37,6 +39,14 @@ class Declaration(Node):
         ws = space_per_indent * indent * ' '
         dimensions = [f'[{size if size is not None else ""}]' for size in self.sizes]
         return f'{ws}{localness} {self.name}{"".join(dimensions)};'
+    def replace(self, replacer):
+        self.name = replace(self.name, replacer)
+
+class Var(Node):
+    def __init__(self, name):
+        self.name = name
+    def pprint(self, indent=0):
+        return self.name
     def replace(self, replacer):
         self.name = replace(self.name, replacer)
 
@@ -73,6 +83,22 @@ class Assignment(Node):
     def replace(self, replacer):
         self.lhs, self.rhs = replace_each([self.lhs, self.rhs], replacer)
 
+class Hole(Node):
+    def __init__(self, hole_name, family_name):
+        self.hole_name = hole_name
+        self.family_name = family_name
+    def is_hole(self):
+        return True
+
+class NameHole(Hole):
+    def pprint(self, indent=0):
+        return '_'
+
+class StatementHole(Hole):
+    def pprint(self, indent=0):
+        ws = space_per_indent * indent * ' '
+        return f'{ws}$'
+
 def replace(i, replacer):
     if replacer.should_skip(i):
         return i
@@ -87,8 +113,8 @@ def replace(i, replacer):
 def replace_each(l, replacer):
     return [replace(i, replacer) for i in l]
 
-def is_hole(name):
-    return name.startswith('`') and name.endswith('`')
+# def is_hole(name):
+#     return name.startswith('`') and name.endswith('`')
 
 def pprint_maybe_hole(name):
     return '_' if is_hole(name) else name
@@ -101,7 +127,7 @@ class Access(Node):
         return len(self.indices) == 0
     def pprint(self, indent=0):
         list_of_pprint = [f'[{index.pprint()}]' for index in self.indices]
-        return f'{pprint_maybe_hole(self.var)}{"".join(list_of_pprint)}'
+        return f'{self.var.pprint()}{"".join(list_of_pprint)}'
     def replace(self, replacer):
         self.var = replace(self.var, replacer)
         self.indices = replace_each(self.indices, replacer)
@@ -201,13 +227,16 @@ def populate(program, populate_function):
     replacer = Populator(populate_function)
     return replace(program, replacer)
 
+def populate_v2(program, replacer):
+    return replace(program, replacer)
+
 class Populator(Replacer):
     def __init__(self, populate_function):
         self.populate_function = populate_function
     def should_skip(self, node):
         return type(node) in [Declaration, Const]
     def should_replace(self, name):
-        return type(name) == str and is_hole(name)
+        return is_name_hole(name) or is_stmt_hole(name)
     def replace(self, name):
         return self.populate_function(name)
 

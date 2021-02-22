@@ -15,8 +15,9 @@ grammar = '''
 
     loop_vars: access ("," access)*
 
-    statement: assignment | abstract_loop
+    statement: assignment | abstract_loop | statement_hole
     assignment: access "=" expr ";"
+    statement_hole: "$" CNAME (":" CNAME)? "$"
 
     expr: action+
     action: op? atom
@@ -32,8 +33,10 @@ grammar = '''
     int_literal: INT
     hex_literal: HEX_NUMBER
 
-    scalar: CNAME | CNAME_EX
-    array: CNAME | CNAME_EX
+    scalar: CNAME | name_hole
+    array: CNAME | name_hole
+    name_hole: "`" CNAME (":" CNAME)? "`"
+
     CONDITIONAL: "?" | ":"
     LOGICAL: "||" | "&&"
     BITWISE: "|" | "^" | "&"
@@ -45,7 +48,7 @@ grammar = '''
     UNARY: "+" | "-" | "!" | "~"
 
     HEX_NUMBER: /0x[\\da-f]*/i
-    CNAME_EX: "`" CNAME (":" CNAME)? "`"
+
     COMMENT: /#[^\\n]*/
     %import common.WS
     %import common.LETTER
@@ -68,7 +71,7 @@ grammar = '''
 # DEC_NUMBER: /0|[1-9]\d*/i
 
 
-from skeleton_ast import AbstractLoop, Assignment, Expr, Access, Action, Program, Declaration, Const, Literal, Hex, Paren, is_hole
+from skeleton_ast import AbstractLoop, Assignment, Expr, Access, Action, Program, Declaration, Const, Literal, Hex, Paren, NameHole, StatementHole, Var, Hole
 
 class TreeSimplifier(Transformer):
     def dimension(self, args):
@@ -81,17 +84,29 @@ class TreeSimplifier(Transformer):
     def param(self, args):
         sizes = args[1:]
         n_dimensions = len(args) - 1
-        return Declaration(args[0], n_dimensions, sizes, is_local=False)
+        return Declaration(args[0].name, n_dimensions, sizes, is_local=False)
     def local(self, args):
         sizes = args[1:]
         n_dimensions = len(args) - 1
-        return Declaration(args[0], n_dimensions, sizes, is_local=True)
+        return Declaration(args[0].name, n_dimensions, sizes, is_local=True)
     def array(self, args):
-        return ''.join(args)
+        if isinstance(args[0], Hole):
+            return args[0]
+        else:
+            return Var(args[0])
+    def name_hole(self, args):
+        if len(args) == 1:
+            return NameHole(args[0], '_')
+        elif len(args) == 2:
+            return NameHole(args[0], args[1])
+        assert(False)
     def const(self, args):
         return Const(args[0])
     def scalar(self, args):
-        return ''.join(args)
+        if isinstance(args[0], Hole):
+            return args[0]
+        else:
+            return Var(args[0])
     def index(self, args):
         return args[0]
     def literal(self, args):
@@ -129,6 +144,13 @@ class TreeSimplifier(Transformer):
     def statement(self, args):
         stmt = args[0]
         return stmt
+    def statement_hole(self, args):
+        if len(args) == 1:
+            return StatementHole(args[0], '_')
+        elif len(args) == 2:
+            return StatementHole(args[0], args[1])
+        assert(False)
+
     def loop_vars(self, args):
         return args
 
@@ -162,8 +184,9 @@ class TreeSimplifier(Transformer):
         consts_set = set()
         for stmt in body:
             for access in get_accesses(stmt):
-                if access.var not in non_consts and not is_hole(access.var):
-                    consts_set.add(access.var)
+                if not access.var.is_hole():
+                    if access.var.name not in non_consts:
+                        consts_set.add(access.var.name)
         consts = [Const(name)
                   for name in sorted(list(consts_set))]
         return Program(decls, body, consts)
@@ -171,6 +194,13 @@ class TreeSimplifier(Transformer):
 def parse_str(code):
     parser = Lark(grammar)
     lark_ast = parser.parse(code)
+    tree_simplifier = TreeSimplifier()
+    abstract_ast = tree_simplifier.transform(lark_ast)
+    return abstract_ast
+
+def parse_stmt_str(code):
+    parser = Lark(grammar)
+    lark_ast = parser.parse(code, start=parser.statement)
     tree_simplifier = TreeSimplifier()
     abstract_ast = tree_simplifier.transform(lark_ast)
     return abstract_ast
@@ -210,6 +240,8 @@ def get_accesses(node):
     elif isinstance(node, Paren):
         accesses.update(get_accesses(node.expr))
         return accesses
+    elif isinstance(node, StatementHole):
+        return accesses
     elif isinstance(node, Literal):
         return accesses
     else:
@@ -227,6 +259,8 @@ def get_loops(node):
             loops.update(get_loops(stmt))
         return loops
     elif isinstance(node, Assignment):
+        return {}
+    elif isinstance(node, StatementHole):
         return {}
     else:
         raise RuntimeError('get_loops: Unhandled type of node ' + str(type(node)))
