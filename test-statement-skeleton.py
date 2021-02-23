@@ -63,3 +63,31 @@ name_populator.add('lhs', [Var('A')])
 name_populator.add('rhs', [Var('B'), Var('C')])
 skeleton = populate_name(skeleton, name_populator.populate)
 print(skeleton.pprint())
+maybe_pattern_code = skeleton.pprint()
+pattern = parse_pattern(maybe_pattern_code)
+
+# instance
+var_map = VariableMap()
+
+def set_exact_loop_bounds(var_map, loop_var, min_val, max_val):
+    lower_bound = f'{loop_var}_greater_eq'
+    var_map.set_min(lower_bound, min_val)
+    var_map.set_max(lower_bound, min_val)
+    upper_bound = f'{loop_var}_less_eq'
+    var_map.set_min(upper_bound, max_val)
+    var_map.set_max(upper_bound, max_val)
+
+for loop_var in ['i', 'j', 'k']:
+    set_exact_loop_bounds(var_map, loop_var, 0, 99)
+
+instance = create_instance(pattern, var_map)
+print(instance.pprint())
+print(instance.pattern.cprint())
+
+# C code generation
+application = 'Skeleton'
+batch = 'batch'
+code = f'code'
+codelet = f'codelet'
+n_iterations = 10
+generate_codelet(application, batch, code, codelet, n_iterations, instance)
