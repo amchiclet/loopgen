@@ -50,6 +50,14 @@ class Var(Node):
     def replace(self, replacer):
         self.name = replace(self.name, replacer)
 
+class Op(Node):
+    def __init__(self, name):
+        self.name = name
+    def pprint(self, indent=0):
+        return self.name
+    def replace(self, replacer):
+        self.name = replace(self.name, replacer)
+
 class Literal(Node):
     def __init__(self, ty, val):
         self.ty = ty
@@ -105,8 +113,13 @@ class StatementHole(Hole):
 
 class ExpressionHole(Hole):
     def pprint(self, indent=0):
-        ws = space_per_indent * indent * ' '
-        return f'{ws}#'
+        return '#'
+    def replace(self, replacer):
+        pass
+
+class OpHole(Hole):
+    def pprint(self, indent=0):
+        return '@'
     def replace(self, replacer):
         pass
 
@@ -204,10 +217,11 @@ class Action(Node):
         self.access = access
     def pprint(self, indent=0):
         if self.op is not None:
-            return f'{self.op} {self.access.pprint()}'
+            return f'{self.op.pprint()} {self.access.pprint()}'
         else:
             return self.access.pprint()
     def replace(self, replacer):
+        self.op = replace(self.op, replacer)
         self.access = replace(self.access, replacer)
 
 class Paren(Node):
@@ -250,6 +264,10 @@ def populate_expr(program, populate_function):
     replacer = ExpressionPopulator(populate_function)
     return replace(program, replacer)
 
+def populate_op(program, populate_function):
+    replacer = OpPopulator(populate_function)
+    return replace(program, replacer)
+
 class Populator(Replacer):
     def __init__(self, populate_function):
         self.populate_function = populate_function
@@ -263,6 +281,10 @@ class Populator(Replacer):
 class StatementPopulator(Populator):
     def should_replace(self, node):
         return type(node) == StatementHole
+
+class OpPopulator(Populator):
+    def should_replace(self, node):
+        return type(node) == OpHole
 
 class ExpressionPopulator(Populator):
     def should_replace(self, node):

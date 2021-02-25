@@ -21,7 +21,8 @@ grammar = '''
 
     expr: action+
     action: op? atom
-    op: CONDITIONAL | LOGICAL | BITWISE | EQUAL | RELATION | BITWISE_SHIFT | ADDITIVE | MULTIPLICATIVE | UNARY
+    op: CONDITIONAL | LOGICAL | BITWISE | EQUAL | RELATION | BITWISE_SHIFT | ADDITIVE | MULTIPLICATIVE | UNARY | op_hole
+    op_hole: "@" CNAME (":" CNAME)? "@"
     atom: access | paren | expr_hole
     paren: "(" expr ")"
     expr_hole: "#" CNAME (":" CNAME)? "#"
@@ -72,7 +73,7 @@ grammar = '''
 # DEC_NUMBER: /0|[1-9]\d*/i
 
 
-from skeleton_ast import AbstractLoop, Assignment, Expr, Access, Action, Program, Declaration, Const, Literal, Hex, Paren, NameHole, StatementHole, ExpressionHole, Var, Hole
+from skeleton_ast import AbstractLoop, Assignment, Expr, Access, Action, Program, Declaration, Const, Literal, Hex, Paren, NameHole, StatementHole, ExpressionHole, Var, Hole, OpHole, Op
 
 class TreeSimplifier(Transformer):
     def dimension(self, args):
@@ -124,7 +125,6 @@ class TreeSimplifier(Transformer):
         return Access(args[0], args[1:])
     def access(self, args):
         return args[0]
-
     def expr(self, args):
         return Expr(args)
     def action(self, args):
@@ -134,8 +134,10 @@ class TreeSimplifier(Transformer):
             return Action(*args)
         assert(False)
     def op(self, args):
-        assert(len(args) == 1)
-        return args[0]
+        if isinstance(args[0], Hole):
+            return args[0]
+        else:
+            return Op(args[0])
     def atom(self, args):
         return args[0]
     def paren(self, args):
@@ -156,6 +158,12 @@ class TreeSimplifier(Transformer):
             return ExpressionHole(args[0], '_')
         elif len(args) == 2:
             return ExpressionHole(args[0], args[1])
+        assert(False)
+    def op_hole(self, args):
+        if len(args) == 1:
+            return OpHole(args[0], '_')
+        elif len(args) == 2:
+            return OpHole(args[0], args[1])
         assert(False)
 
     def loop_vars(self, args):

@@ -5,7 +5,7 @@ from skeleton import \
 
 from pattern import parse_str as parse_pattern
 from instance import create_instance, VariableMap
-from skeleton_ast import replace, Literal, populate_name, populate_stmt, populate_expr, Var
+from skeleton_ast import replace, Literal, populate_name, populate_stmt, populate_expr, Var, populate_op, Op
 from random import choice
 from codelet_generator import generate_codelet
 from populator import Populator
@@ -37,8 +37,8 @@ stmt3_code = """
 stmts = [parse_statement(code) for code in [stmt1_code, stmt2_code, stmt3_code]]
 
 expr1_code = "`x:rhs`[i][j]"
-expr2_code = "`x:rhs`[i][j] + `x:rhs`[i][j]"
-expr3_code = "`x:rhs`[i][j] + `x:rhs`[i][j] * C[j][k]"
+expr2_code = "`x:rhs`[i][j] @x@ `x:rhs`[i][j]"
+expr3_code = "`x:rhs`[i][j] @x@ `x:rhs`[i][j] @x@ C[j][k]"
 
 exprs = [parse_expression(code) for code in [expr1_code, expr2_code, expr3_code]]
 
@@ -58,11 +58,17 @@ expr_populator = Populator(exprs)
 skeleton = populate_expr(skeleton, expr_populator.populate)
 print(skeleton.pprint())
 
+op_populator = Populator([Op('*'), Op('+'), Op('/'), Op('-')])
+skeleton = populate_op(skeleton, op_populator.populate)
+print(skeleton.pprint())
+
 name_populator = Populator()
 name_populator.add('lhs', [Var('A')])
 name_populator.add('rhs', [Var('B'), Var('C')])
 skeleton = populate_name(skeleton, name_populator.populate)
 print(skeleton.pprint())
+exit()
+
 maybe_pattern_code = skeleton.pprint()
 pattern = parse_pattern(maybe_pattern_code)
 
