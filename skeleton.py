@@ -11,9 +11,11 @@ grammar = '''
     param: "declare" array (dimension)* ";"
     local: "local" array (dimension)* ";"
     dimension: "[" INT? "]"
-    abstract_loop: "for" "[" loop_vars "]" "{" statement+ "}"
+    abstract_loop: "for" "[" loop_vars "]" "{" seq "}"
 
     loop_vars: access ("," access)*
+
+    seq: statement*
 
     statement: assignment | abstract_loop | statement_hole
     assignment: access "=" expr ";"
@@ -147,6 +149,8 @@ class TreeSimplifier(Transformer):
     def statement(self, args):
         stmt = args[0]
         return stmt
+    def seq(self, args):
+        return args
     def statement_hole(self, args):
         if len(args) == 1:
             return StatementHole(args[0], '_')
@@ -171,7 +175,7 @@ class TreeSimplifier(Transformer):
 
     def abstract_loop(self, args):
         loop_vars = args[0]
-        body = args[1:]
+        body = args[1]
         loop = AbstractLoop(loop_vars, body)
         return loop
     def start(self, args):
@@ -215,6 +219,9 @@ def parse_str(code, start="start"):
 
 def parse_stmt_str(code):
     return parse_str(code, "statement")
+
+def parse_seq_str(code):
+    return parse_str(code, "seq")
 
 def parse_expr_str(code):
     return parse_str(code, "expr")

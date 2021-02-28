@@ -201,7 +201,14 @@ class AbstractLoop(Node, LoopTrait):
         return '\n'.join([header] + body + [end])
     def replace(self, replacer):
         self.loop_vars = replace_each(self.loop_vars, replacer)
-        self.body = replace_each(self.body, replacer)
+        new_body = []
+        for stmt in self.body:
+            stmts = replace(stmt, replacer)
+            if type(stmts) == list:
+                new_body += stmts
+            else:
+                new_body.append(stmts)
+        self.body = new_body
 
 class Expr(Node):
     def __init__(self, actions):
