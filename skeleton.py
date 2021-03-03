@@ -263,6 +263,8 @@ def get_accesses(node):
         return accesses
     elif isinstance(node, StatementHole):
         return accesses
+    elif isinstance(node, ExpressionHole):
+        return accesses
     elif isinstance(node, Literal):
         return accesses
     else:

@@ -644,6 +644,8 @@ def get_arrays(program):
 class ConstReplacer(Replacer):
     def __init__(self, replace_map):
         self.replace_map = replace_map
+    def should_skip(self, node):
+        return not isinstance(node, Node)
     def should_replace(self, node):
         return type(node) == Access and node.var in self.replace_map
     def replace(self, node):
@@ -652,6 +654,8 @@ class ConstReplacer(Replacer):
 class VarRenamer(Replacer):
     def __init__(self, replace_map):
         self.replace_map = replace_map
+    def should_skip(self, node):
+        return False
     def should_replace(self, node):
         return type(node) == str and node in self.replace_map
     def replace(self, node):

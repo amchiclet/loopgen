@@ -44,4 +44,4 @@ class Populator(Replacer):
         if family in self.finite_families:
             self.available[family].remove(chosen)
 
-        return chosen
+        return chosen.clone()

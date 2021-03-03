@@ -15,6 +15,8 @@ class Node:
         raise NotImplementedError(type(self))
     def is_hole(self):
         return False
+    def clone(self):
+        raise NotImplementedError(type(self))
 
 class Const(Node):
     def __init__(self, name):
@@ -24,6 +26,8 @@ class Const(Node):
         return f'{ws}const {self.name};'
     def replace(self, replacer):
         self.name = replace(self.name, replacer)
+    def clone(self):
+        return Const(self.name)
 
 class Declaration(Node):
     def __init__(self, name, n_dimensions, sizes=None, is_local=False):
@@ -41,6 +45,8 @@ class Declaration(Node):
         return f'{ws}{localness} {self.name}{"".join(dimensions)};'
     def replace(self, replacer):
         self.name = replace(self.name, replacer)
+    def clone(self):
+        return Declaration(self.name, self.n_dimensions, self.sizes, self.is_local)
 
 class Var(Node):
     def __init__(self, name):
@@ -49,6 +55,8 @@ class Var(Node):
         return self.name
     def replace(self, replacer):
         self.name = replace(self.name, replacer)
+    def clone(self):
+        return Var(self.name)
 
 class Op(Node):
     def __init__(self, name):
@@ -57,6 +65,8 @@ class Op(Node):
         return self.name
     def replace(self, replacer):
         self.name = replace(self.name, replacer)
+    def clone(self):
+        return Op(self.name)
 
 class Literal(Node):
     def __init__(self, ty, val):
@@ -67,6 +77,8 @@ class Literal(Node):
     def replace(self, replacer):
         self.ty = replace(self.ty, replacer)
         self.val = replace(self.val, replacer)
+    def clone(self):
+        return Literal(self.ty, self.val)
 
 class Hex(Literal):
     def __init__(self, str_val):
@@ -79,6 +91,8 @@ class Hex(Literal):
         self.ty = replace(self.ty, replacer)
         self.val = replace(self.val, replacer)
         self.str_val = replace(self.str_val, replacer)
+    def clone(self):
+        return Hex(self.str_val)
 
 class Assignment(Node):
     def __init__(self, lhs, rhs):
@@ -90,6 +104,8 @@ class Assignment(Node):
         return f'{ws}{self.lhs.pprint()} = {self.rhs.pprint()};'
     def replace(self, replacer):
         self.lhs, self.rhs = replace_each([self.lhs, self.rhs], replacer)
+    def clone(self):
+        return Assignment(self.lhs.clone(), self.rhs.clone())
 
 class Hole(Node):
     def __init__(self, hole_name, family_name):
@@ -103,6 +119,8 @@ class NameHole(Hole):
         return '_'
     def replace(self, replacer):
         pass
+    def clone(self):
+        return NameHole(self.hole_name, self.family_name)
 
 class StatementHole(Hole):
     def pprint(self, indent=0):
@@ -110,18 +128,24 @@ class StatementHole(Hole):
         return f'{ws}$'
     def replace(self, replacer):
         pass
+    def clone(self):
+        return StatementHole(self.hole_name, self.family_name)
 
 class ExpressionHole(Hole):
     def pprint(self, indent=0):
-        return '#'
+        return f'#{self.hole_name}:{self.family_name}#'
     def replace(self, replacer):
         pass
+    def clone(self):
+        return ExpressionHole(self.hole_name, self.family_name)
 
 class OpHole(Hole):
     def pprint(self, indent=0):
         return '@'
     def replace(self, replacer):
         pass
+    def clone(self):
+        return OpHole(self.hole_name, self.family_name)
 
 def replace(i, replacer):
     if replacer.should_skip(i):
@@ -155,6 +179,9 @@ class Access(Node):
     def replace(self, replacer):
         self.var = replace(self.var, replacer)
         self.indices = replace_each(self.indices, replacer)
+    def clone(self):
+        cloned_indices = [index.clone() for index in self.indices]
+        return Access(self.var.clone(), cloned_indices)
 
 def greater_eq_const_name(loop_var):
     return f'{loop_var}_greater_eq'
@@ -209,6 +236,10 @@ class AbstractLoop(Node, LoopTrait):
             else:
                 new_body.append(stmts)
         self.body = new_body
+    def clone(self):
+        cloned_loop_vars = [loop_var.clone() for loop_var in self.loop_vars]
+        cloned_body = [stmt.clone() for stmt in self.body]
+        return AbstractLoop(cloned_loop_vars, cloned_body)
 
 class Expr(Node):
     def __init__(self, actions):
@@ -217,6 +248,8 @@ class Expr(Node):
         return ' '.join(action.pprint() for action in self.actions)
     def replace(self, replacer):
         self.actions = replace_each(self.actions, replacer)
+    def clone(self):
+        return Expr([action.clone() for action in self.actions])
 
 class Action(Node):
     def __init__(self, op, access):
@@ -230,6 +263,9 @@ class Action(Node):
     def replace(self, replacer):
         self.op = replace(self.op, replacer)
         self.access = replace(self.access, replacer)
+    def clone(self):
+        cloned_op = None if self.op is None else self.op.clone()
+        return Action(cloned_op, self.access.clone())
 
 class Paren(Node):
     def __init__(self, expr):
@@ -238,6 +274,8 @@ class Paren(Node):
         return f'({self.expr.pprint()})'
     def replace(self, replacer):
         self.expr = replace(self.expr, replacer)
+    def clone(self):
+        return Paren(self.expr.clone())
 
 class Program(Node, LoopTrait):
     def __init__(self, decls, body, consts):
@@ -254,6 +292,12 @@ class Program(Node, LoopTrait):
         self.decls = replace_each(self.decls, replacer)
         self.consts = replace_each(self.consts, replacer)
         self.body = replace_each(self.body, replacer)
+    def clone(self):
+        return Program(
+            [decl.clone() for decl in self.decls],
+            [stmt.clone() for stmt in self.body],
+            [const.clone() for const in self.consts]
+        )
 
 def populate(program, populate_function):
     replacer = Populator(populate_function)
