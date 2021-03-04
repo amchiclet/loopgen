@@ -6,7 +6,7 @@ from skeleton import \
 
 from pattern import parse_str as parse_pattern
 from instance import create_instance, VariableMap
-from skeleton_ast import replace, Literal, populate_name, populate_stmt, populate_expr, Var, populate_op, Op
+from skeleton_ast import replace, populate_name, populate_stmt, populate_expr, Var, populate_op, Op
 from random import choice, seed
 from codelet_generator import generate_codelet
 from populator import Populator
@@ -97,22 +97,48 @@ def create_instance_with_size(size):
 
 print(len(generated_hashes))
 
+def name_many(nodes, delimiter=''):
+    return delimiter.join([name(node) for node in nodes])
+
+def name(node):
+    from pattern_ast import Hex, Assignment, AbstractLoop, Literal, Access, Program, Op
+    ty = type(node)
+    if ty == Literal:
+        return 'X'
+    if ty == Hex:
+        return node.str_val
+    if ty == Assignment:
+        return f'_set_{name(node.lhs)}{name(node.rhs)}'
+    if ty == Access:
+        return f'{node.var}{name_many(node.indices)}'
+    if ty == AbstractLoop:
+        assert(len(node.body) == 1)
+        return name(node.body[0])
+    if ty == Op:
+        op_map = {
+            '+': '_add_',
+            '*': '_mul_'
+        }
+        return f'{op_map[node.op]}{name_many(node.args)}'
+    if ty == Program:
+        assert(len(node.body) == 1)
+        return name(node.body[0])
+    print(ty)
+
 v_number = 1
 for body in generated_bodies:
     pattern = parse_pattern(body.pprint())
+    pattern_name = name(pattern)
+
     for size in 420, 600, 850:
         instance = create_instance_with_size(size)
 
         # C code generation
         application = 'LoopGen'
         batch = 'matmul_variations'
-        code_prefix = f'M1_v{v_number:03}'
+        code_prefix = f'{pattern_name}'
         code = f'{code_prefix}.c'
         codelet = f'{code_prefix}_{size}.c_de'
         n_iterations = 10
-        print(codelet)
-        continue
-        # generate_codelet(application, batch, code, codelet, n_iterations, instance)
-
-        # print(instance.pprint())
-
+        print(instance.pprint())
+        generate_codelet(application, batch, code, codelet, n_iterations, instance)
