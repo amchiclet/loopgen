@@ -1,5 +1,6 @@
 import random
 from skeleton_ast import Replacer, Const, Declaration, Node, replace, ExpressionHole, StatementHole, OpHole, NameHole
+from math import prod
 
 class IncrementalChoice:
     def __init__(self):
@@ -10,16 +11,62 @@ class IncrementalChoice:
         self.index += 1
         return sample
 
-class FixedChoice:
+class FixedChoiceFactory:
     def __init__(self, choices):
         self.choices = choices
         self.index = 0
-    def choice(self, population):
-        assert(self.i < len(self.choices))
-        sample = population[self.choices[self.index]]
-        self.index += 1
-        return sample
+    def create_choice_function(self):
+        index = self.index
+        def choice(population):
+            nonlocal index
+            assert(index < len(self.choices))
+            sample = population[self.choices[index]]
+            index += 1
+            return sample
+        return choice
 
+def space_to_strides(space):
+    strides = [1]
+    for size in reversed(space):
+        strides.append(size * strides[-1])
+    strides.reverse()
+    return strides
+    
+def int_to_point(i, space):
+    strides = space_to_strides(space)
+    if i >= strides[0]:
+        raise RuntimeError('integer too large to be represented by space')
+
+    point = []
+    for dimension_size in strides[1:]:
+        which_index = i // dimension_size
+        point.append(which_index)
+        i = i % dimension_size
+    return point
+
+def point_to_int(p, space):
+    strides = space_to_strides(space)
+    i = 0
+    print(strides)
+    for v, dimension_size in zip(p, strides[1:]):
+        i += v * dimension_size
+    return i
+
+class ChoiceFactoryEnumerator:
+    def __init__(self, space):
+        self.space = space
+        self.current_position = 0
+        self.n_enumerated = 0
+        self.space_size = prod(space)
+    def enumerate(self):
+        while self.n_enumerated < self.space_size:
+            current_point = int_to_point(self.current_position, self.space)
+            yield FixedChoiceFactory(current_point)
+            self.n_enumerated += 1
+            self.current_position += 1
+
+# TODO: Store the choices made (probably as a list of integers).
+#       This is useful for naming generated programs and debugging purposes.
 class PopulateParameters:
     def __init__(self, default_choices=None, is_finite=False, choice_function=random.choice):
         self.available = {}

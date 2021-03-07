@@ -6,10 +6,10 @@ from skeleton import \
 
 from pattern import parse_str as parse_pattern
 from instance import create_instance, VariableMap
-from skeleton_ast import replace, populate_name, populate_stmt, populate_expr, Var, populate_op, Op
+from skeleton_ast import Var, Op
 from random import choice, seed
 from codelet_generator import generate_codelet
-from populator import Populator
+from populator import PopulateParameters, populate_name, populate_stmt, populate_expr, populate_op
 
 from hashlib import md5
 
@@ -34,7 +34,7 @@ op1b = "B[i][k] @_@ #_:ik#"
 op2a = "#_:kj# @_@ `_:bc`[k][j]"
 op2b = "`_:bc`[k][j] @_@ #_:kj#"
 
-operand_populator_1 = Populator()
+operand_populator_1 = PopulateParameters()
 operand_populator_1.add('op1', [parse_expression(code) for code in [op1a, op1b]])
 operand_populator_1.add('op2', [parse_expression(code) for code in [op2a, op2b]])
 
@@ -42,13 +42,13 @@ ik1 = "`_:de`[i][k]"
 ik2 = "2.5"
 kj1 = "`_:de`[k][j]"
 kj2 = "1.5"
-operand_populator_2 = Populator()
+operand_populator_2 = PopulateParameters()
 operand_populator_2.add('ik', [parse_expression(code) for code in [ik1, ik2]])
 operand_populator_2.add('kj', [parse_expression(code) for code in [kj1, kj2]])
 
-op_populator = Populator([Op('*'), Op('+')])
+op_populator = PopulateParameters([Op('*'), Op('+')])
 
-name_populator = Populator()
+name_populator = PopulateParameters()
 name_populator.add('bc', [Var('B'), Var('C')])
 name_populator.add('de', [Var('D'), Var('E')])
 
@@ -61,7 +61,7 @@ def generate_one(code):
 
 generated_bodies = []
 generated_hashes = set()
-n_wanted = 100
+n_wanted = 2
 max_tries = 10000
 for _ in range(max_tries):
     body = generate_one(skeleton.clone())
