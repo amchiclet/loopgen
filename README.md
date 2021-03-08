@@ -14,6 +14,14 @@ Requires z3, lark and loguru.
 pip3 install --user z3-solver lark-parser loguru
 ```
 
+## Overview
+
+The original goal of LoopGen was to generate programs for compiler researchers. Programs with loops and arrays tend to activate optimizations performed by compilers. Being able to generate these types of programs would make it easier for researchers to test optimizating compilers.
+
+While it is possible to freely generate random programs, having more control over the structure of generated programs allow users to focus on specific types of programs. LoopGen gives users control over the types of generated programs through skeletons, i.e. programs that have holes to be filled.
+
+LoopGen is a Python library that makes it easier to randomly generate programs with loops and arrays while still being able to control the overall generated structure of the program.
+
 ## Concepts
 
 ### Skeletons
@@ -78,6 +86,17 @@ for [(i, >=0, <=99)] {
 }
 ```
 
-## API
+## Usage
 
-TODO: Write API documentation
+Example usages can be found in the [examples](examples) directory.
+
+We recommend learning the examples in this sequence.
+1. [Parse a skeleton](examples/parse-skeleton.py)
+1. [Fill a name hole](examples/fill-name-hole.py)
+1. TODO: Fill an operation hole
+1. TODO: Fill an expression hole
+1. TODO: Fill a statement hole
+1. TODO: Parse a pattern
+1. TODO: Create an instance
+
+Once an instance is created, users may generate code by visiting the generated AST. (TODO: include an example C code generator)
