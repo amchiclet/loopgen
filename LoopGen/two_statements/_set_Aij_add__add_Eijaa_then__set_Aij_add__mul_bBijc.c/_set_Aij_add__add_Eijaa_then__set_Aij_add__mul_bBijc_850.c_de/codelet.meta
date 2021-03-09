@@ -1,0 +1,4 @@
+application name=LoopGen
+batch name=two_statements
+code name=_set_Aij_add__add_Eijaa_then__set_Aij_add__mul_bBijc.c
+codelet name=_set_Aij_add__add_Eijaa_then__set_Aij_add__mul_bBijc_850.c_de
