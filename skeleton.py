@@ -18,7 +18,7 @@ grammar = '''
     seq: statement*
 
     statement: assignment | abstract_loop | statement_hole
-    assignment: access "=" expr ";"
+    assignment: expr "=" expr ";"
     statement_hole: "$" CNAME (":" CNAME)? "$"
 
     expr: action+

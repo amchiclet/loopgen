@@ -325,3 +325,20 @@ def create_instance(pattern, var_map, max_tries=10000, l=None):
             return result
 
     return None
+
+def create_instance_with_fixed_size(pattern, loop_vars, size):
+    def set_exact_loop_bounds(var_map, loop_var, min_val, max_val):
+        lower_bound = f'{loop_var}_greater_eq'
+        var_map.set_min(lower_bound, min_val)
+        var_map.set_max(lower_bound, min_val)
+        upper_bound = f'{loop_var}_less_eq'
+        var_map.set_min(upper_bound, max_val)
+        var_map.set_max(upper_bound, max_val)
+
+    # instance
+    var_map = VariableMap(default_max=size)
+    for loop_var in loop_vars:
+        set_exact_loop_bounds(var_map, loop_var, 0, size-1)
+
+    instance = create_instance(pattern, var_map)
+    return instance

@@ -266,3 +266,33 @@ def parse_str(code):
 def parse_file(path):
     with open(path) as f:
         return parse_str(f.read())
+
+def generate_patterns_from_skeleton(
+        generate,
+        skeleton,
+        n_wanted=1,
+        existing_hashes=None,
+        max_tries=10000):
+    from hashlib import md5
+    patterns = []
+
+    hashes = set() if existing_hashes is None else existing_hashes
+
+    n_generated = 0
+    for _ in range(max_tries):
+        body = generate(skeleton.clone())
+        pattern = parse_str(body.pprint())
+        code = pattern.pprint()
+
+        code_hash = md5(code.encode('utf-8')).hexdigest()
+        if code_hash in hashes:
+            print('duplicate')
+            continue
+
+        patterns.append(pattern)
+        hashes.add(code_hash)
+        n_generated += 1
+        if n_generated == n_wanted:
+            break
+
+    return patterns

@@ -96,7 +96,6 @@ class Hex(Literal):
 
 class Assignment(Node):
     def __init__(self, lhs, rhs):
-        assert(type(lhs) == Access)
         self.lhs = lhs
         self.rhs = rhs
     def pprint(self, indent=0):
