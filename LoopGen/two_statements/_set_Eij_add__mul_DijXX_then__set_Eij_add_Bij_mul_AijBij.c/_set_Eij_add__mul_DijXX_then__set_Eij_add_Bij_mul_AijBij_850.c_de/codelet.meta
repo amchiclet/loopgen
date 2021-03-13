@@ -1,4 +1,0 @@
-application name=LoopGen
-batch name=two_statements
-code name=_set_Eij_add__mul_DijXX_then__set_Eij_add_Bij_mul_AijBij.c
-codelet name=_set_Eij_add__mul_DijXX_then__set_Eij_add_Bij_mul_AijBij_850.c_de
