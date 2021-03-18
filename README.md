@@ -93,7 +93,7 @@ Example usages can be found in the [examples](examples) directory.
 We recommend learning the examples in this sequence.
 1. [Parse a skeleton](examples/parse-skeleton.py)
 1. [Fill a name hole](examples/fill-name-hole.py)
-1. TODO: Fill an operation hole
+1. [Fill an operator hole](examples/fill-operator-hole.py)
 1. TODO: Fill an expression hole
 1. TODO: Fill a statement hole
 1. TODO: Parse a pattern
