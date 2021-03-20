@@ -160,9 +160,6 @@ def replace(i, replacer):
 def replace_each(l, replacer):
     return [replace(i, replacer) for i in l]
 
-# def is_hole(name):
-#     return name.startswith('`') and name.endswith('`')
-
 def pprint_maybe_hole(name):
     return '_' if is_hole(name) else name
 
