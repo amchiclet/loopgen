@@ -22,6 +22,10 @@ While it is possible to freely generate random programs, having more control ove
 
 LoopGen is a Python library that makes it easier to randomly generate programs with loops and arrays while still being able to control the overall generated structure of the program.
 
+The high-level usage is to create a skeleton, fill in the holes in the skeleton, create a pattern from the full skeleton, create an instance from the pattern, and finally generate code from the instance.
+
+The terms are described below.
+
 ## Concepts
 
 ### Skeletons
@@ -72,13 +76,13 @@ When all constant variables are replaced with literals and array sizes are deter
 
 ### Instances
 
-An instance is a program operating on arrays. It has enough information to generate a C program. Here's an example instance.
+An instance is a program operating on arrays. It has enough information to generate a C program. Here's an example instance. Note that it includes the array sizes, the loop bounds, and the loop step.
 
 ```
 declare A[100];
 declare B[100];
 
-for [(i, >=0, <=99)] {
+for [(i, >=0, <=99, +=1)] {
   A[i] = 5;
   A[i] = A[i] * 2;
   A[i] = A[i] + B[i];
@@ -90,13 +94,23 @@ for [(i, >=0, <=99)] {
 
 Example usages can be found in the [examples](examples) directory.
 
+When running the examples, make sure the root directory of the repo is in PYTHONPATH.
+
+```
+# Current directory is root of the repo
+export PYTHONPATH=$(pwd)
+
+# Running an example from the examples directory
+python3 examples/parse-skeleton.py
+```
+
 We recommend learning the examples in this sequence.
 1. [Parse a skeleton](examples/parse-skeleton.py)
 1. [Fill a name hole](examples/fill-name-hole.py)
 1. [Fill an operator hole](examples/fill-operator-hole.py)
-1. TODO: Fill an expression hole
-1. TODO: Fill a statement hole
-1. TODO: Parse a pattern
-1. TODO: Create an instance
+1. [Fill an expression hole](examples/fill-expr-hole.py)
+1. [Fill a statement hole](examples/fill-stmt-hole.py)
+1. [Parse a pattern](examples/parse-pattern.py)
+1. [Create an instance](examples/create-instance.py)
 
 Once an instance is created, users may generate code by visiting the generated AST. (TODO: include an example C code generator)
