@@ -98,49 +98,51 @@ def generate_bound_constraints(cvars, var_map):
         constraints.append(cvar <= current_max)
     return constraints
 
-class ArraySize:
+class ArrayAccessBound:
     def __init__(self, name, is_local, n_dimensions):
         self.name = name
         self.is_local = is_local
         self.min_indices = [None] * n_dimensions
         self.max_indices = [None] * n_dimensions
         self.n_dimensions = n_dimensions
-    def new_min(self, dim, index):
+    def new_min_index(self, dim, index):
         if self.min_indices[dim] is None or index < self.min_indices[dim]:
             self.min_indices[dim] = index
-    def new_max(self, dim, index):
+    def new_max_index(self, dim, index):
         if self.max_indices[dim] is None or index > self.max_indices[dim]:
             self.max_indices[dim] = index
-    def check(self):
+    def set_unaccessed_dimensions_to_default(self):
         for dim in range(self.n_dimensions):
-            if self.min_indices[dim] is None:
-                self.min_indices[dim] = 0
-            if self.max_indices[dim] is None:
-                self.max_indices[dim] = 0
+            current_min = self.min_indices[dim]
+            current_max = self.max_indices[dim]
+            if current_min is None:
+                self.min_indices[dim] = 0 if current_max is None else current_max
+            if current_max is None:
+                self.max_indices[dim] = 0 if current_min is None else current_min
     def pprint(self):
         sizes = [max_index + 1 for max_index in self.max_indices]
         brackets = [f'[{size}]' for size in sizes]
         return f'{self.name}{"".join(brackets)}'
 
-def determine_array_sizes(decls, accesses, cvars, constraints, var_map, l=None):
+def determine_array_access_bounds(decls, accesses, cvars, constraints, var_map, l=None):
     if l is None:
         l = logger
     constraint_strs = '\n'.join(map(str, constraints))
     l.debug(f'Determining array sizes for constraints\n{constraint_strs}')
     bypass_set = set()
-    array_sizes = {}
+    bounds = {}
     cloned = var_map.clone()
     for decl in decls:
-        array = ArraySize(decl.name, decl.is_local, decl.n_dimensions)
+        bound = ArrayAccessBound(decl.name, decl.is_local, decl.n_dimensions)
 
         for dimension in range(decl.n_dimensions):
             dim_var = dimension_var(decl.name, dimension)
             if cloned.has_min(dim_var) and cloned.has_max(dim_var):
-                array.new_min(dimension, cloned.get_min(dim_var))
-                array.new_max(dimension, cloned.get_max(dim_var))
+                bound.new_min_index(dimension, cloned.get_min(dim_var))
+                bound.new_max_index(dimension, cloned.get_max(dim_var) - 1)
                 bypass_set.add(dim_var)
 
-        array_sizes[decl.name] = array
+        bounds[decl.name] = bound
 
     for access in accesses:
         for dimension, index in enumerate(access.indices):
@@ -157,16 +159,17 @@ def determine_array_sizes(decls, accesses, cvars, constraints, var_map, l=None):
             else:
                 max_val = find_max(constraints, cexpr, l)
                 if max_val is None or max_val == Error.Z3_BUG:
-                    return max_val
+                    return None
                 min_val = find_min(constraints, cexpr, l)
                 if min_val is None or min_val == Error.Z3_BUG:
-                    return min_val
-            array_sizes[access.var].new_min(dimension, min_val)
-            array_sizes[access.var].new_max(dimension, max_val)
+                    return None
+            bound = bounds[access.var]
+            bound.new_min_index(dimension, min_val)
+            bound.new_max_index(dimension, max_val)
 
-    for array in array_sizes.values():
-        array.check()
-    return array_sizes
+    for bound in bounds.values():
+        bound.set_unaccessed_dimensions_to_default()
+    return bounds
 
 def validate_var_map(program, var_map):
     cloned = var_map.clone()
@@ -188,41 +191,38 @@ def validate_var_map(program, var_map):
     return True
 
 class Instance:
-    def __init__(self, pattern, array_sizes):
+    def __init__(self, pattern, array_access_bounds):
         self.pattern = pattern
-        if array_sizes is None:
-            self.array_sizes = {}
+        if array_access_bounds is None:
+            self.array_access_bounds = {}
             for decl in self.pattern.decls:
-                array_size = ArraySize(decl.name, decl.is_local, decl.n_dimensions)
-                array_size.min_indices = [0] * decl.n_dimensions
-                array_size.max_indices = []
+                bound = ArrayAccessBound(decl.name, decl.is_local, decl.n_dimensions)
                 for size in decl.sizes:
-                    if size is None:
-                        array_size.max_indices.append(None)
-                    else:
-                        array_size.max_indices.append(size - 1)
-                self.array_sizes[decl.name] = array_size
+                    assert(size is not None)
+                    bound.min_indices.append(0)
+                    bound.max_indices.append(size - 1)
+                self.array_access_bounds[decl.name] = bound
         else:
-            for name, array in array_sizes.items():
+            for name, bound in array_access_bounds.items():
                 decl = next(d for d in pattern.decls if d.name == name)
-                for dim, max_index in enumerate(array.max_indices):
+                for dim, max_index in enumerate(bound.max_indices):
                     size = max_index + 1
                     if decl.sizes[dim] is None:
                         decl.sizes[dim] = size
                     else:
                         assert(decl.sizes[dim] == size)
-            self.array_sizes = array_sizes
+            self.array_access_bounds = array_access_bounds
     def pprint(self):
         lines = []
         lines.append(self.pattern.pprint())
-        for name in sorted(self.array_sizes.keys()):
-            lines.append(f'Array {self.array_sizes[name].pprint()}')
+        for name in sorted(self.array_access_bounds.keys()):
+            lines.append(f'Array {self.array_access_bounds[name].pprint()}')
         return '\n'.join(lines)
     def clone(self):
         return Instance(self.pattern.clone(),
-                        deepcopy(self.array_sizes))
+                        deepcopy(self.array_access_bounds))
 
-def create_instance_blindly(pattern, var_map):
+def replace_constant_variables_blindly(pattern, var_map):
     cloned = pattern.clone()
     replace_map = {}
     for const in cloned.consts:
@@ -238,14 +238,14 @@ def create_instance_blindly(pattern, var_map):
     replacer = ConstReplacer(replace_map)
     cloned.replace(replacer)
     cloned.consts = []
-    return Instance(cloned, None)
+    return cloned
 
 def create_instance(pattern, var_map, max_tries=10000, l=None):
     if l is None:
         l = logger
 
     def try_once():
-        random_pattern = create_instance_blindly(pattern, var_map).pattern
+        random_pattern = replace_constant_variables_blindly(pattern, var_map)
         cvars = get_scalar_cvars(random_pattern)
         accesses = get_accesses(random_pattern)
         cloned_var_map = var_map.clone()
@@ -260,7 +260,7 @@ def create_instance(pattern, var_map, max_tries=10000, l=None):
                     # TODO: we don't really need min
                     cloned_var_map.set_min(dim_var, 0)
                     # TODO: maybe allow more room for the max
-                    cloned_var_map.set_max(dim_var, max_index)
+                    cloned_var_map.set_max(dim_var, size)
 
         index_constraints = generate_index_constraints(accesses,
                                                        cvars,
@@ -306,23 +306,20 @@ def create_instance(pattern, var_map, max_tries=10000, l=None):
             l.debug('\n'.join(map(str, constraints)))
             return None
 
-        array_sizes = determine_array_sizes(random_pattern.decls,
-                                            accesses, cvars,
-                                            constraints,
-                                            cloned_var_map, l)
-        if array_sizes is None or array_sizes == Error.Z3_BUG:
+        bounds = determine_array_access_bounds(random_pattern.decls,
+                                               accesses, cvars,
+                                               constraints,
+                                               cloned_var_map, l)
+        if bounds is None:
             return None
 
-        return Instance(random_pattern, array_sizes)
+        return Instance(random_pattern, bounds)
 
     for _ in range(max_tries):
         result = try_once()
-        if result == Error.Z3_BUG:
-            return None
-        if result == Error.Z3_BUG:
-            return Error.Z3_BUG
-        if result is not None:
-            return result
+        if result is None:
+            continue
+        return result
 
     return None
 
