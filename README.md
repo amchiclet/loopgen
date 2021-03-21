@@ -22,9 +22,7 @@ While it is possible to freely generate random programs, having more control ove
 
 LoopGen is a Python library that makes it easier to randomly generate programs with loops and arrays while still being able to control the overall generated structure of the program.
 
-The high-level usage is to create a skeleton, fill in the holes in the skeleton, create a pattern from the full skeleton, create an instance from the pattern, and finally generate code from the instance.
-
-The terms are described below.
+The high-level usage is to create a [skeleton](#skeletons), fill in the holes in the skeleton, create a [pattern](#patterns) from the full skeleton, create an [instance](#instances) from the pattern, and finally generate code from the instance.
 
 ## Concepts
 
