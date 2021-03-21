@@ -51,3 +51,13 @@ pattern = parse_pattern(full_skeleton_str)
 # in memory. A pattern is used to create an instance, which
 # has more useful information to generate runnable code.
 print(pattern.pprint())
+
+# Here's another example, parsing a pattern directly from source
+pattern_code = """
+declare A[];
+for [i] {
+  A[i] = 0;
+}
+"""
+pattern2 = parse_pattern(pattern_code)
+print(pattern2.pprint())
