@@ -234,8 +234,6 @@ class TreeSimplifier(Transformer):
                 decls.append(arg)
             elif type(arg) in [AbstractLoop, Assignment]:
                 body.append(arg)
-            # elif type(arg) == Const:
-            #     consts.append(arg)
             else:
                 raise RuntimeError('Unsupported syntax in main program')
         # Add implicit constants that are created when the bounds and steps
