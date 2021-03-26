@@ -1,4 +1,0 @@
-application name=LoopGen
-batch name=matmul
-code name=M1abb.c
-codelet name=M1abb850.c_de
