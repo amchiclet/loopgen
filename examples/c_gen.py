@@ -1,6 +1,5 @@
 from pattern import parse_str as parse_pattern
 from instance import create_instance_with_fixed_size
-from codegen.c_generator import generate_code
 
 code = """
 declare A[][];
@@ -15,6 +14,12 @@ pattern = parse_pattern(code)
 print(pattern.pprint())
 
 instance = create_instance_with_fixed_size(pattern, 100)
+
+# Here's a default C program generator
+# Depending on the experiment being carried out, the user
+# may want to write a custom generator
+# See codegen/c_generator.py in case there are some re-usable functions.
+from codegen.c_generator import generate_code
 
 # Generates code in the my_output_dir directory
 # Once the files are generated, set the CC environment variable
