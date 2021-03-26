@@ -1,4 +1,4 @@
-from pattern_ast import get_accesses, get_loops, Access, Op, ConstReplacer
+from pattern_ast import get_accesses, get_loops, gather_loop_shapes, gather_loop_vars, Access, Op, ConstReplacer
 from random import randint, choice, shuffle, uniform
 from loguru import logger
 from z3_utils import expr_to_cexpr, get_scalar_cvars, find_max, find_min
@@ -323,7 +323,7 @@ def create_instance(pattern, var_map, max_tries=10000, l=None):
 
     return None
 
-def create_instance_with_fixed_size(pattern, loop_vars, size):
+def create_instance_with_fixed_size_deprecated(pattern, loop_vars, size):
     def set_exact_loop_bounds(var_map, loop_var, min_val, max_val):
         lower_bound = f'{loop_var}_greater_eq'
         var_map.set_min(lower_bound, min_val)
@@ -335,6 +335,27 @@ def create_instance_with_fixed_size(pattern, loop_vars, size):
     # instance
     var_map = VariableMap(default_max=size)
     for loop_var in loop_vars:
+        set_exact_loop_bounds(var_map, loop_var, 0, size-1)
+
+    instance = create_instance(pattern, var_map)
+    return instance
+
+def create_instance_with_fixed_size(pattern, size):
+    def set_exact_loop_bounds(var_map, loop_var, min_val, max_val):
+        lower_bound = f'{loop_var}_greater_eq'
+        var_map.set_min(lower_bound, min_val)
+        var_map.set_max(lower_bound, min_val)
+        upper_bound = f'{loop_var}_less_eq'
+        var_map.set_min(upper_bound, max_val)
+        var_map.set_max(upper_bound, max_val)
+
+    loops = get_loops(pattern)
+    loop_shapes = gather_loop_shapes(loops)
+    loop_vars = gather_loop_vars(loop_shapes)
+
+    # instance
+    var_map = VariableMap(default_max=size)
+    for loop_var in set(loop_vars):
         set_exact_loop_bounds(var_map, loop_var, 0, size-1)
 
     instance = create_instance(pattern, var_map)
