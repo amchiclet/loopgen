@@ -110,5 +110,7 @@ We recommend learning the examples in this sequence.
 1. [Fill a statement hole](examples/fill-stmt-hole.py)
 1. [Parse a pattern](examples/parse-pattern.py)
 1. [Create an instance](examples/create-instance.py)
+1. [Generate random matmul code](examples/matmul.py)
+1. [Exhaustively generate matmul code](examples/matmul-exhaustive.py)
 
 Once an instance is created, users may generate code by visiting the generated AST. (TODO: include an example C code generator)
