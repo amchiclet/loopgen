@@ -290,6 +290,7 @@ def generate_patterns_from_skeleton(
         patterns.append(pattern)
         hashes.add(code_hash)
         n_generated += 1
+        print(f'Progress: {n_generated} / {n_wanted}')
         if n_generated == n_wanted:
             break
 
