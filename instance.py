@@ -8,7 +8,7 @@ from array_access_bound import (
     dimension_var,
     determine_array_access_bounds,
     ArrayAccessBound)
-
+from type_assignment import TypeAssignment, assign_types
 from z3 import Solver, Int, unsat, Optimize, sat, Or, And, Not
 
 def generate_index_constraints(accesses, cvars, var_map):
@@ -116,9 +116,6 @@ def replace_constant_variables_blindly(pattern, var_map):
     cloned.consts = []
     return cloned
 
-def assign_types(pattern, type_assignment):
-    pass
-
 def create_instance(pattern, var_map, max_tries=10000, l=None, type_assignment=None):
     if l is None:
         l = logger
@@ -192,6 +189,11 @@ def create_instance(pattern, var_map, max_tries=10000, l=None, type_assignment=N
         if bounds is None:
             return None
 
+        # assign types once we're sure it's a valid program
+        nonlocal type_assignment
+        if type_assignment is None:
+            type_assignment = TypeAssignment(['float', 'double'])
+        assign_types(random_pattern, type_assignment)
         return Instance(random_pattern, bounds)
 
     for _ in range(max_tries):

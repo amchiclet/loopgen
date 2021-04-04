@@ -65,13 +65,13 @@ class CGenerator:
     def no_indent(self):
         return spaces(self.indent)
 
-    def decl(self, ty, decl, is_ptr=False, is_restrict=False):
+    def decl(self, decl, is_ptr=False, is_restrict=False):
         assert(not(is_ptr and is_restrict))
         brackets = ''.join([f'[{size}]' for size in decl.sizes])
         name = decl.name
         if is_ptr:
             name = f'(*{name})'
-        declaration = f'{ty} {name}{brackets}'
+        declaration = f'{decl.ty} {name}{brackets}'
         if is_restrict:
             declaration = declaration.replace('[', '[restrict ', 1)
         return declaration
@@ -80,14 +80,14 @@ class CGenerator:
         lines = []
         for decl in self.iterate_decls(is_nonlocal):
             if is_array(decl):
-                lines.append(f'{self.decl(default_type, ptr(decl), is_ptr=True)};')
+                lines.append(f'{self.decl(ptr(decl), is_ptr=True)};')
             else:
-                lines.append(f'{self.decl(default_type, decl)};')
+                lines.append(f'{self.decl(decl)};')
         return '\n'.join(lines)
 
     def allocate_var(self, decl):
         n_elements = ' * '.join([str(size) for size in decl.sizes])
-        return f'{decl.name} = malloc(sizeof({default_type}) * {n_elements});'
+        return f'{decl.name} = malloc(sizeof({decl.ty}) * {n_elements});'
 
     def allocate_heap_vars_code(self):
         ws = self.indent_in()
@@ -100,7 +100,7 @@ class CGenerator:
 
     def array_only_params(self):
         return ', '.join([
-            self.decl(default_type, decl, is_restrict=True)
+            self.decl(decl, is_restrict=True)
             for decl in self.iterate_decls(is_nonlocal_array)
         ])
 
@@ -135,7 +135,7 @@ class CGenerator:
     def canonicalize_name(self, decl):
         ws = self.no_indent()
         if is_array(decl):
-            return [f'{ws}{self.decl(default_type, decl)} = *{ptr(decl).name};']
+            return [f'{ws}{self.decl(decl)} = *{ptr(decl).name};']
         else:
             return []
 
@@ -166,7 +166,7 @@ class CGenerator:
     def calculate_checksum_code(self):
         lines = []
         ws = self.indent_in()
-        lines.append(f'{ws}{default_type} total = 0.0;')
+        lines.append(f'{ws}float total = 0.0;')
         self.indent_out()
 
         for decl in self.iterate_decls():
@@ -177,13 +177,13 @@ class CGenerator:
 
     def core_externs(self):
         return '\n'.join([
-            f'extern {self.decl(default_type, decl)};'
+            f'extern {self.decl(decl)};'
             for decl in self.iterate_decls(is_nonlocal_scalar)
         ])
 
     def core_params(self):
         return ', '.join([
-            self.decl(default_type, decl, is_restrict=True)
+            self.decl(decl, is_restrict=True)
             for decl in self.iterate_decls(is_nonlocal_array)
         ])
 

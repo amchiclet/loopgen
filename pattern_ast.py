@@ -49,7 +49,7 @@ class Const(Node):
         self.name = replace(self.name, replacer)
 
 class Declaration(Node):
-    def __init__(self, name, n_dimensions, sizes=None, is_local=False):
+    def __init__(self, name, n_dimensions, sizes=None, is_local=False, ty=None):
         self.name = name
         self.n_dimensions = n_dimensions
         if sizes is None:
@@ -57,15 +57,16 @@ class Declaration(Node):
         else:
             self.sizes = sizes
         self.is_local = is_local
-
+        self.ty = ty
         # self.surrounding_loop = None
     def pprint(self, indent=0):
         localness = 'local' if self.is_local else 'declare'
+        ty = ' ' if self.ty is None else f' {self.ty} '
         ws = space_per_indent * indent * ' '
         dimensions = [f'[{size if size is not None else ""}]' for size in self.sizes]
-        return f'{ws}{localness} {self.name}{"".join(dimensions)};'
+        return f'{ws}{localness}{ty}{self.name}{"".join(dimensions)};'
     def clone(self):
-        return Declaration(self.name, self.n_dimensions, list(self.sizes), self.is_local)
+        return Declaration(self.name, self.n_dimensions, list(self.sizes), self.is_local, self.ty)
     def is_syntactically_equal(self, other):
         return (
             type(other) == Declaration and
