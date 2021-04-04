@@ -38,8 +38,6 @@ class Node:
 class Const(Node):
     def __init__(self, name):
         self.name = name
-    def cprint(self, indent=0):
-        raise RuntimeError('This function should not be called')
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
         return f'{ws}const {self.name};'
@@ -61,21 +59,6 @@ class Declaration(Node):
         self.is_local = is_local
 
         # self.surrounding_loop = None
-    def cprint(self, indent=0):
-        if not self.is_local:
-            brackets = ''
-            is_first = True
-            for size in self.sizes:
-                if is_first:
-                    brackets += f'[restrict {size}]'
-                    is_first = False
-                else:
-                    brackets += f'[{size}]'
-            return f'{self.name}{brackets}'
-        else:
-            brackets = ''.join([f'[{size}]' for size in self.sizes])
-            return f'{self.name}{brackets}'
-        raise RuntimeError('This function should not be called')
     def pprint(self, indent=0):
         localness = 'local' if self.is_local else 'declare'
         ws = space_per_indent * indent * ' '
@@ -98,8 +81,6 @@ class Literal(Node):
     def __init__(self, ty, val):
         self.ty = ty
         self.val = val
-    def cprint(self, indent=0):
-        return f'{self.val}'
     def pprint(self, indent=0):
         return f'{self.val}'
     def clone(self):
@@ -117,8 +98,6 @@ class Hex(Literal):
         self.ty = bytes
         self.str_val = str_val
         self.val = bytes.fromhex(str_val[2:])  # remove the 0x
-    def cprint(self, indent=0):
-        return f'{self.str_val}'
     def pprint(self, indent=0):
         return f'{self.str_val}'
     def clone(self):
@@ -145,10 +124,6 @@ class Assignment(Node):
             access.parent_stmt = self
             for index in access.indices:
                 index.parent_stmt = self
-    def cprint(self, indent=0):
-        ws = space_per_indent * indent * ' '
-        return f'{ws}{self.lhs.cprint()} = {self.rhs.cprint()};'
-
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
         return f'{ws}{self.lhs.pprint()} = {self.rhs.pprint()};'
@@ -189,10 +164,6 @@ class Access(Node):
         self.parent_stmt = None
     def is_scalar(self):
         return len(self.indices) == 0
-    def cprint(self, indent=0):
-        list_of_pprint = [f'[{index.cprint()}]' for index in self.indices]
-        return f'{self.var}{"".join(list_of_pprint)}'
-
     def pprint(self, indent=0):
         list_of_pprint = [f'[{index.pprint()}]' for index in self.indices]
         return f'{self.var}{"".join(list_of_pprint)}'
@@ -342,31 +313,6 @@ class AbstractLoop(Node, LoopTrait):
         self.surrounding_loop = None
         for stmt in body:
             stmt.surrounding_loop = self
-
-    def cprint_recursive(self, depth, indent=0):
-        if depth == len(self.loop_shapes):
-            lines = []
-            for stmt in self.body:
-                lines.append(stmt.cprint(indent+1))
-            return '\n'.join(lines)
-
-        ws = '  ' * indent
-        loop_shape = self.loop_shapes[depth]
-        loop_var = loop_shape.loop_var.cprint()
-        # Assuming that the loop step is positive
-        begin = loop_shape.greater_eq.cprint()
-        end = loop_shape.less_eq.cprint()
-        step = loop_shape.step.cprint()
-        lines = [(f'{ws}for (int {loop_var} = {begin}; '
-                  f'{loop_var} <= {end}; '
-                  f'{loop_var}+={step}) {{')]
-        lines.append(self.cprint_recursive(depth+1, indent+1))
-        lines.append(f'{ws}}}')
-        return '\n'.join(lines)
-
-    def cprint(self, indent=0):
-        return self.cprint_recursive(0, indent)
-
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
         loop_vars = []
@@ -447,11 +393,6 @@ class Op(Node):
             return arg.pprint(indent)
         return self.generic_print(formatter)
 
-    # TODO: refactor pprint and cprint
-    def cprint(self, indent=0):
-        def formatter(arg):
-            return arg.cprint(indent)
-        return self.generic_print(formatter)
     def dep_print(self, refs):
         def formatter(arg):
             return arg.dep_print(refs)
@@ -490,12 +431,6 @@ class Program(Node, LoopTrait):
             if decl.name == name:
                 return decl
         return None
-    def cprint(self, indent=0):
-        lines = []
-        for stmt in self.body:
-            lines.append(stmt.cprint(indent))
-        return '\n'.join(lines)
-
     def pprint(self, indent=0):
         body = []
         body += [f'{decl.pprint(indent)}' for decl in self.decls]
