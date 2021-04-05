@@ -11,22 +11,22 @@
 
 ${data_defs}
 
+void allocate_heap_vars() {
+${allocate_heap_vars_code}
+}
+
 float frand(float min, float max) {
   float scale = rand() / (float) RAND_MAX;
   return min + scale * (max - min);
 }
 
-float irand(int min, int max) {
-  return min + (rand() % (max - min));
+int irand(int min, int max) {
+  return min + (rand() % (max - min + 1));
 }
 
 double drand(double min, double max) {
   double scale = rand() / (double) RAND_MAX;
   return min + scale * (max - min);
-}
-
-void allocate_heap_vars() {
-${allocate_heap_vars_code}
 }
 
 void init() {

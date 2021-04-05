@@ -116,7 +116,7 @@ def replace_constant_variables_blindly(pattern, var_map):
     cloned.consts = []
     return cloned
 
-def create_instance(pattern, var_map, max_tries=10000, l=None, type_assignment=None):
+def create_instance(pattern, var_map, max_tries=10000, l=None, types=None):
     if l is None:
         l = logger
 
@@ -190,10 +190,10 @@ def create_instance(pattern, var_map, max_tries=10000, l=None, type_assignment=N
             return None
 
         # assign types once we're sure it's a valid program
-        nonlocal type_assignment
-        if type_assignment is None:
-            type_assignment = TypeAssignment(['float', 'double'])
-        assign_types(random_pattern, type_assignment)
+        nonlocal types
+        if types is None:
+            types = TypeAssignment()
+        assign_types(random_pattern, types)
         return Instance(random_pattern, bounds)
 
     for _ in range(max_tries):

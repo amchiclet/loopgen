@@ -3,6 +3,7 @@ from shutil import copy2
 from string import Template
 from pattern_ast import (Declaration, Literal, Hex, Assignment,
                          Access, LoopShape, AbstractLoop, Op, Program)
+from constant_assignment import VariableMap
 
 def loop_header(loop_var, begin, end):
     return (f'for (int {loop_var} = {begin}; '
@@ -11,8 +12,6 @@ def loop_header(loop_var, begin, end):
 
 def spaces(indent):
     return '  ' * indent
-
-default_type = 'float'
 
 def is_nonlocal(decl):
     return not decl.is_local
@@ -37,11 +36,12 @@ def access(name, loop_vars):
     return f'{name}' + ''.join(f'[{v}]' for v in loop_vars)
 
 class CGenerator:
-    def __init__(self, instance):
+    def __init__(self, instance, init_value_map):
         self.pattern = instance.pattern
         self.sorted_var_names = sorted([decl.name for decl in self.pattern.decls])
         self.decls = {decl.name:decl for decl in self.pattern.decls}
 
+        self.init_value_map = init_value_map
         self.access_bounds = instance.array_access_bounds
         self.indent = 0
 
@@ -142,8 +142,24 @@ class CGenerator:
     def initialize_value(self, decl):
         lines = []
         def generate_body(loop_vars):
+            if decl.ty == 'float':
+                rand = 'frand'
+                vals = (0.0, 1.0)
+            elif decl.ty == 'double':
+                rand = 'drand'
+                vals = (0.0, 1.0)
+            elif decl.ty == 'int':
+                rand = 'irand'
+                vals = (0, 10)
+            else:
+                raise RuntimeError(f'Unsupported type {decl.ty}')
+
+            # Override default if it is in init_value_map
+            if self.init_value_map.has_range(decl.name):
+                vals = self.init_value_map.get_range(decl.name)
+
             name = decl.name if not is_array(decl) else f'(*{ptr(decl).name})'
-            return f'{self.no_indent()}{access(name, loop_vars)} = frand(0.1, 1.0);'
+            return f'{self.no_indent()}{access(name, loop_vars)} = {rand}{vals};'
         lines.append(self.nested_loops(self.access_bounds[decl.name],
                                        generate_body))
         return '\n'.join(lines)
@@ -151,6 +167,7 @@ class CGenerator:
     def initialize_values_code(self):
         lines = []
         for decl in self.iterate_decls():
+            print(decl.pprint())
             lines.append(self.initialize_value(decl))
         return '\n'.join(lines)
 
@@ -230,7 +247,10 @@ class CGenerator:
     def core_code(self):
         return self.ast(self.pattern)
 
-def generate_code(output_dir, instance):
+def generate_code(output_dir, instance, init_value_map=None):
+    if init_value_map is None:
+        init_value_map = VariableMap()
+
     # setup directories
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -245,7 +265,7 @@ def generate_code(output_dir, instance):
     copy2(src_make_path, dst_make_path)
 
     # prepare template dictionary
-    cgen = CGenerator(instance)
+    cgen = CGenerator(instance, init_value_map)
     template_dict = {
         'data_defs': cgen.data_defs(),
 
