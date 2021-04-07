@@ -210,20 +210,98 @@ class LoopTrait:
         for stmt in stmts:
             stmt.surrounding_loop = self
 
+class LoopShapeBuilder:
+    def __init__(self):
+        self.loop_var = None
+        self.greater_eq = None
+        self.less_eq = None
+        self.step = None
+    def set_shape_part(self, expr, prefix=None):
+        if prefix is None:
+            self.loop_var = expr
+        elif prefix == '>=':
+            self.greater_eq = expr
+        elif prefix == '<=':
+            self.less_eq = expr
+        elif prefix == '+=':
+            self.step = expr
+        else:
+            raise RuntimeError(f'Unsupported prefix ({prefix})')
+    def merge(self, other):
+        if other.loop_var is not None:
+            assert(self.loop_var is None)
+            self.loop_var = other.loop_var
+        if other.less_eq is not None:
+            assert(self.less_eq is None)
+            self.less_eq = other.less_eq
+        if other.greater_eq is not None:
+            assert(self.greater_eq is None)
+            self.greater_eq = other.greater_eq
+        if other.step is not None:
+            assert(self.step is None)
+            self.step = other.step
+    def build(self, default_greater_eq, default_less_eq, default_step):
+        assert(self.loop_var is not None)
+        loop_var = self.loop_var
+        greater_eq = self.greater_eq if self.greater_eq is not None else default_greater_eq
+        less_eq = self.less_eq if self.less_eq is not None else default_less_eq
+        step = self.step if self.step is not None else default_step
+        return LoopShape(loop_var, greater_eq, less_eq, step)
+
+class LoopShape(Node):
+    def __init__(self, loop_var, greater_eq, less_eq, step):
+        self.loop_var = loop_var
+        self.greater_eq = greater_eq
+        self.less_eq = less_eq
+        self.step = step
+    def clone(self):
+        return LoopShape(self.loop_var.clone(),
+                         self.greater_eq.clone(),
+                         self.less_eq.clone(),
+                         self.step.clone())
+    def pprint(self):
+        parts = []
+        parts.append(self.loop_var.pprint())
+        loop_var_name = self.loop_var.pprint()
+        if not is_default_greater_eq(loop_var_name, self.greater_eq):
+            parts.append(f'>={self.greater_eq.pprint()}')
+        if not is_default_less_eq(loop_var_name, self.less_eq):
+            parts.append(f'<={self.less_eq.pprint()}')
+        if not is_default_step(self.step):
+            parts.append(f'+={self.step.pprint()}')
+        if len(parts) == 1:
+            return parts[0]
+        else:
+            return '(' + ', '.join(parts) + ')'
+
+    def is_syntactically_equal(self, other):
+        return (
+            type(other) == LoopShape and
+            self.loop_var.is_syntactically_equal(other.loop_var) and
+            self.greater_eq.is_syntactically_equal(other.greater_eq) and
+            self.less_eq.is_syntactically_equal(other.less_eq) and
+            self.step.is_syntactically_equal(other.step)
+        )
+    def replace(self, replacer):
+        self.loop_var = replace(self.loop_var, replacer)
+        self.greater_eq = replace(self.greater_eq, replacer)
+        self.less_eq = replace(self.less_eq, replacer)
+        self.step = replace(self.step, replacer)
+
 class AbstractLoop(Node, LoopTrait):
-    def __init__(self, loop_vars, body):
-        self.loop_vars = loop_vars
+    def __init__(self, loop_shapes, body):
+        self.loop_shapes = loop_shapes
         self.body = body
 
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
-        loop_vars = [var.pprint() for var in self.loop_vars]
-        header = f'{ws}for [{", ".join(loop_vars)}] {{'
+        shapes = [shape.pprint() for shape in self.loop_shapes]
+        header = f'{ws}for [{", ".join(shapes)}] {{'
         body = [f'{stmt.pprint(indent+1)}' for stmt in self.body]
         end = f'{ws}}}'
         return '\n'.join([header] + body + [end])
     def replace(self, replacer):
-        self.loop_vars = replace_each(self.loop_vars, replacer)
+        self.loop_shapes = replace_each(self.loop_shapes, replacer)
         new_body = []
         for stmt in self.body:
             stmts = replace(stmt, replacer)
@@ -233,9 +311,9 @@ class AbstractLoop(Node, LoopTrait):
                 new_body.append(stmts)
         self.body = new_body
     def clone(self):
-        cloned_loop_vars = [loop_var.clone() for loop_var in self.loop_vars]
+        cloned_loop_shapes = [loop_var.clone() for loop_var in self.loop_shapes]
         cloned_body = [stmt.clone() for stmt in self.body]
-        return AbstractLoop(cloned_loop_vars, cloned_body)
+        return AbstractLoop(cloned_loop_shapes, cloned_body)
 
 class Expr(Node):
     def __init__(self, actions):

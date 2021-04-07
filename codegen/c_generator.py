@@ -247,7 +247,9 @@ class CGenerator:
     def core_code(self):
         return self.ast(self.pattern)
 
-def generate_code(output_dir, instance, init_value_map=None):
+def generate_code(output_dir, instance, init_value_map=None, template_dir=None):
+    if template_dir is None:
+        template_dir = 'codegen'
     if init_value_map is None:
         init_value_map = VariableMap()
 
@@ -255,12 +257,12 @@ def generate_code(output_dir, instance, init_value_map=None):
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     # main
-    src_main_c_path = f'codegen/main.template.c'
+    src_main_c_path = f'{template_dir}/main.template.c'
     dst_main_c_path = f'{output_dir}/main.c'
     copy2(src_main_c_path, dst_main_c_path)
 
     # make file
-    src_make_path = f'codegen/Makefile'
+    src_make_path = f'{template_dir}/Makefile'
     dst_make_path = f'{output_dir}/Makefile'
     copy2(src_make_path, dst_make_path)
 
@@ -281,7 +283,7 @@ def generate_code(output_dir, instance, init_value_map=None):
 
     # wrapper
     # fill template
-    wrapper_template_path = Path('codegen/wrapper.template.c')
+    wrapper_template_path = Path(f'{template_dir}/wrapper.template.c')
     wrapper_template_str = wrapper_template_path.read_text()
     wrapper_template = Template(wrapper_template_str)
     wrapper_str = wrapper_template.substitute(template_dict)
@@ -292,7 +294,7 @@ def generate_code(output_dir, instance, init_value_map=None):
 
     # core
     # fill template
-    core_template_path = Path('codegen/core.template.c')
+    core_template_path = Path(f'{template_dir}/core.template.c')
     core_template_str = core_template_path.read_text()
     core_template = Template(core_template_str)
     core_str = core_template.substitute(template_dict)
