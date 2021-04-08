@@ -38,33 +38,17 @@ def generate_loop_shape_constraints(loop_shapes, cvars, var_map):
 
     return constraints
 
-def generate_bound_constraints(cvars, var_map):
+def generate_bound_constraints(decls, cvars, var_map):
     constraints = []
+    var_names = [decl.name for decl in decls]
     for var, cvar in cvars.items():
+        if var not in var_names:
+            continue
         current_min = var_map.get_min(var)
         current_max = var_map.get_max(var)
         constraints.append(cvar >= current_min)
         constraints.append(cvar <= current_max)
     return constraints
-
-def validate_var_map(program, var_map):
-    cloned = var_map.clone()
-
-    accesses = get_accesses(program)
-
-    cvars = get_scalar_cvars(program)
-    index_constraints = generate_index_constraints(accesses, cvars, cloned)
-    bound_constraints = generate_bound_constraints(cvars, cloned)
-    constraints = index_constraints + bound_constraints
-
-    solver = Solver()
-    solver.set('timeout', 10000)
-    solver.add(constraints)
-    status = solver.check()
-
-    if status == unsat:
-        return False
-    return True
 
 class Instance:
     def __init__(self, pattern, array_access_bounds):
@@ -148,7 +132,7 @@ def create_instance(pattern, var_map, max_tries=10000, l=None, types=None):
                                                                       cvars,
                                                                       cloned_var_map)
 
-        bound_constraints = generate_bound_constraints(cvars, cloned_var_map)
+        bound_constraints = generate_bound_constraints(random_pattern.decls, cvars, cloned_var_map)
 
         l.debug('Index constraints:\n' + '\n'.join(map(str, index_constraints)))
         l.debug('Loop shape constraints:\n' + '\n'.join(map(str, loop_shape_constraints)))
@@ -156,7 +140,7 @@ def create_instance(pattern, var_map, max_tries=10000, l=None, types=None):
 
         assert(len(index_constraints) > 0)
         invert_index_constraints = Not(And(index_constraints))
-        
+
         constraints = [invert_index_constraints] + loop_shape_constraints + bound_constraints
 
         solver = Solver()
