@@ -410,6 +410,14 @@ class Op(Node):
     def replace(self, replacer):
         self.args = replace_each(self.args, replacer)
 
+def plus_one(expr):
+    if type(expr) == int:
+        return expr + 1
+    elif isinstance(expr, Node):
+        return Op('+', [expr.clone(), Literal(int, 1)])
+    else:
+        raise RuntimeError(f'plus_one: unsupported type {type(expr)}')
+
 class Program(Node, LoopTrait):
     def __init__(self, decls, body, consts):
         self.decls = decls

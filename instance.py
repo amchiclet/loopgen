@@ -1,4 +1,4 @@
-from pattern_ast import get_accesses, get_loops, gather_loop_shapes, gather_loop_vars, Access, Op, ConstReplacer
+from pattern_ast import get_accesses, get_loops, gather_loop_shapes, gather_loop_vars, Access, Op, ConstReplacer, Literal, plus_one
 from random import randint, choice, shuffle, uniform
 from loguru import logger
 from z3_utils import expr_to_cexpr, get_scalar_cvars, find_max, find_min
@@ -20,7 +20,8 @@ def generate_index_constraints(accesses, cvars, var_map):
                 constraints.append(0 <= cexpr)
                 dim_var = dimension_var(access.var, dimension)
                 dim_size = var_map.get_max(dim_var)
-                constraints.append(cexpr < dim_size)
+                dim_size_cexpr = expr_to_cexpr(dim_size, cvars)
+                constraints.append(cexpr < dim_size_cexpr)
     return constraints
 
 def generate_loop_shape_constraints(loop_shapes, cvars, var_map):
@@ -36,7 +37,6 @@ def generate_loop_shape_constraints(loop_shapes, cvars, var_map):
         if i_less_eq is not None:
             constraints.append(i <= i_less_eq)
 
-    return constraints
 
 def generate_bound_constraints(decls, cvars, var_map):
     constraints = []
@@ -53,25 +53,13 @@ def generate_bound_constraints(decls, cvars, var_map):
 class Instance:
     def __init__(self, pattern, array_access_bounds):
         self.pattern = pattern
-        if array_access_bounds is None:
-            self.array_access_bounds = {}
-            for decl in self.pattern.decls:
-                bound = ArrayAccessBound(decl.name, decl.is_local, decl.n_dimensions)
-                for size in decl.sizes:
-                    assert(size is not None)
-                    bound.min_indices.append(0)
-                    bound.max_indices.append(size - 1)
-                self.array_access_bounds[decl.name] = bound
-        else:
-            for name, bound in array_access_bounds.items():
-                decl = next(d for d in pattern.decls if d.name == name)
-                for dim, max_index in enumerate(bound.max_indices):
-                    size = max_index + 1
-                    if decl.sizes[dim] is None:
-                        decl.sizes[dim] = size
-                    else:
-                        assert(decl.sizes[dim] == size)
-            self.array_access_bounds = array_access_bounds
+        for name, bound in array_access_bounds.items():
+            decl = next(d for d in pattern.decls if d.name == name)
+            for dim, max_index in enumerate(bound.max_indices):
+                # size = max_index + 1
+                if decl.sizes[dim] is None:
+                    decl.sizes[dim] = plus_one(max_index)
+        self.array_access_bounds = array_access_bounds
     def pprint(self):
         lines = []
         lines.append(self.pattern.pprint())
@@ -115,7 +103,6 @@ def create_instance(pattern, var_map, max_tries=10000, l=None, types=None):
             for dimension in range(decl.n_dimensions):
                 size = decl.sizes[dimension]
                 if size is not None:
-                    max_index = size - 1
                     dim_var = dimension_var(decl.name, dimension)
                     # TODO: we don't really need min
                     cloned_var_map.set_min(dim_var, 0)

@@ -1,7 +1,13 @@
 from z3 import Int, Optimize, sat, unsat, Solver
-from pattern_ast import get_accesses, Op, Access, Literal
+from pattern_ast import get_accesses, Op, Access, Literal, Node
+from loguru import logger
+
+from enum import Enum
+class Error(Enum):
+    Z3_BUG = 0
 
 def expr_to_cexpr(expr, cvars):
+    # logger.info(expr)
     if type(expr) == Op:
         args = expr.args
         op = expr.op
@@ -29,14 +35,24 @@ def expr_to_cexpr(expr, cvars):
     elif type(expr) == Access:
         if expr.is_scalar() and expr.var in cvars:
             return cvars[expr.var]
+    elif type(expr) == int:
+        return expr
     return None
 
 def get_scalar_cvars(pattern):
     cvars = {}
+    def maybe_add(access):
+        if access.is_scalar() and access.var not in cvars:
+            cvars[access.var] = Int(access.var)
+
     for access in get_accesses(pattern):
-        if access.is_scalar():
-            if access.var not in cvars:
-                cvars[access.var] = Int(access.var)
+        maybe_add(access)
+    for decl in pattern.decls:
+        for size in decl.sizes:
+            if size is not None:
+                for access in get_accesses(size):
+                    maybe_add(access)
+
     return cvars
 
 def affine_to_cexpr(affine, cvars):
@@ -72,8 +88,8 @@ def find_max(constraints, expr, l = None):
     status = solver.check()
 
     if status != unsat:
-        l.warning(f'Z3 bug\nFind max ({expr}) => {max_val} with status ({status}):\n' + '\n'.join(constraint_strs))
-        return Error.Z3_BUG
+        l.error(f'Z3 bug\nFind max ({expr}) => {max_val} with status ({status}):\n' + '\n'.join(constraint_strs))
+        return None
     return max_val
 
 def find_min(constraints, expr, l = None):
@@ -104,8 +120,8 @@ def find_min(constraints, expr, l = None):
     status = solver.check()
 
     if status != unsat:
-        l.warning(f'Z3 bug\nFind min ({expr}) => {min_val} with status ({status}):\n' + '\n'.join(constraint_strs))
-        return Error.Z3_BUG
+        l.error(f'Z3 bug\nFind min ({expr}) => {min_val} with status ({status}):\n' + '\n'.join(constraint_strs))
+        return None
     return min_val
 
 def find_min_max(constraints, i):

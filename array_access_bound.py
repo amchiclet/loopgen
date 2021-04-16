@@ -1,4 +1,5 @@
-from z3_utils import expr_to_cexpr, get_scalar_cvars, find_max, find_min
+from z3_utils import expr_to_cexpr, get_scalar_cvars, find_max, find_min, Error
+from z3 import Int
 
 class ArrayAccessBound:
     def __init__(self, name, is_local, n_dimensions):
@@ -26,10 +27,6 @@ class ArrayAccessBound:
         brackets = [f'[{size}]' for size in sizes]
         return f'{self.name}{"".join(brackets)}'
 
-from enum import Enum
-class Error(Enum):
-    Z3_BUG = 0
-
 def dimension_var(var, dimension):
     return f'{var}{"[]"*(dimension+1)}'
 
@@ -43,38 +40,53 @@ def determine_array_access_bounds(decls, accesses, cvars, constraints, var_map, 
     cloned = var_map.clone()
     for decl in decls:
         bound = ArrayAccessBound(decl.name, decl.is_local, decl.n_dimensions)
-
-        for dimension in range(decl.n_dimensions):
-            dim_var = dimension_var(decl.name, dimension)
-            if cloned.has_min(dim_var) and cloned.has_max(dim_var):
-                bound.new_min_index(dimension, cloned.get_min(dim_var))
-                bound.new_max_index(dimension, cloned.get_max(dim_var) - 1)
-                bypass_set.add(dim_var)
-
         bounds[decl.name] = bound
 
+    related_cexprs = {}
+    for decl in decls:
+        for dimension in range(decl.n_dimensions):
+            dim_var = dimension_var(decl.name, dimension)
+            related_cexprs[dim_var] = []
     for access in accesses:
         for dimension, index in enumerate(access.indices):
-
             dim_var = dimension_var(access.var, dimension)
-            if dim_var in bypass_set:
-                continue
-
             cexpr = expr_to_cexpr(index, cvars)
-            if cexpr is None:
-                l.warning(f'Unable to analyze the max value of {index.pprint()} in {access.pprint()}')
-                max_val = cloned.default_max
-                min_val = cloned.default_min
+            assert(cexpr is not None)
+            related_cexprs[dim_var].append(cexpr)
+
+    # find_min(size) for all index where (size > index)
+    for decl in decls:
+        for dimension, size in enumerate(decl.sizes):
+            dim_var = dimension_var(decl.name, dimension)
+            dim_var_cexpr = Int(dim_var)
+            upperbound_constraints = [cexpr < dim_var_cexpr for cexpr in related_cexprs[dim_var]]
+            if size is None:
+                dimension_max_cexpr = expr_to_cexpr(var_map.get_max(dim_var), cvars)
+                upperbound_constraints.append(dim_var_cexpr <= dimension_max_cexpr)
             else:
-                max_val = find_max(constraints, cexpr, l)
-                if max_val is None or max_val == Error.Z3_BUG:
-                    return None
-                min_val = find_min(constraints, cexpr, l)
-                if min_val is None or min_val == Error.Z3_BUG:
-                    return None
-            bound = bounds[access.var]
-            bound.new_min_index(dimension, min_val)
-            bound.new_max_index(dimension, max_val)
+                size_cexpr = expr_to_cexpr(size, cvars)
+                upperbound_constraints.append(size_cexpr == dim_var_cexpr)
+
+            l.info('upper bounds')
+            l.info(constraints + upperbound_constraints)
+            array_dim_size = find_max(constraints + upperbound_constraints, dim_var_cexpr)
+            if array_dim_size is None:
+                return None
+            upper_bound = array_dim_size - 1
+            l.info(f'found upperbound size for {dim_var} {upper_bound}')
+
+            lowerbound_constraints = [cexpr >= dim_var_cexpr for cexpr in related_cexprs[dim_var]]
+            dimension_min_cexpr = expr_to_cexpr(var_map.get_min(dim_var), cvars)
+            lowerbound_constraints.append(dim_var_cexpr >= dimension_min_cexpr)
+            l.info('lower bounds')
+            l.info(constraints + lowerbound_constraints)
+            lower_bound = find_min(constraints + lowerbound_constraints, dim_var_cexpr)
+            if lower_bound is None:
+                return None
+            l.info(f'found lowerbound size for {dim_var} {lower_bound}')
+            bound = bounds[decl.name]
+            bound.new_min_index(dimension, lower_bound)
+            bound.new_max_index(dimension, upper_bound)
 
     for bound in bounds.values():
         bound.set_unaccessed_dimensions_to_default()

@@ -10,7 +10,7 @@ grammar = '''
     declaration: param | local
     param: "declare" array (dimension)* ";"
     local: "local" array (dimension)* ";"
-    dimension: "[" INT? "]"
+    dimension: "[" expr? "]"
     abstract_loop: "for" "[" loop_shapes "]" "{" statement+ "}"
 
     loop_shapes: loop_shape ("," loop_shape)*
@@ -84,7 +84,7 @@ from pattern_ast import Assignment, Access, AbstractLoop, Program, get_accesses,
 class TreeSimplifier(Transformer):
     def dimension(self, args):
         if len(args) > 0:
-            return int(args[0])
+            return args[0]
         else:
             return None
     def declaration(self, args):
