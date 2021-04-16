@@ -126,3 +126,10 @@ def find_min(constraints, expr, l = None):
 
 def find_min_max(constraints, i):
     return [f(constraints, i) for f in [find_min, find_max]]
+
+def is_sat(constraints):
+    solver = Solver()
+    solver.set('timeout', 10000)
+    solver.add(constraints)
+    status = solver.check()
+    return status == sat

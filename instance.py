@@ -36,7 +36,7 @@ def generate_loop_shape_constraints(loop_shapes, cvars, var_map):
         i_less_eq = expr_to_cexpr(shape.less_eq, cvars)
         if i_less_eq is not None:
             constraints.append(i <= i_less_eq)
-
+    return constraints
 
 def generate_bound_constraints(decls, cvars, var_map):
     constraints = []
@@ -64,7 +64,7 @@ class Instance:
         lines = []
         lines.append(self.pattern.pprint())
         for name in sorted(self.array_access_bounds.keys()):
-            lines.append(f'Array {self.array_access_bounds[name].pprint()}')
+            lines.append(f'access {self.array_access_bounds[name].pprint()}')
         return '\n'.join(lines)
     def clone(self):
         return Instance(self.pattern.clone(),

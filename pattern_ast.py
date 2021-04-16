@@ -63,7 +63,7 @@ class Declaration(Node):
         localness = 'local' if self.is_local else 'declare'
         ty = ' ' if self.ty is None else f' {self.ty} '
         ws = space_per_indent * indent * ' '
-        dimensions = [f'[{size if size is not None else ""}]' for size in self.sizes]
+        dimensions = [f'[{size.pprint() if size is not None else ""}]' for size in self.sizes]
         return f'{ws}{localness}{ty}{self.name}{"".join(dimensions)};'
     def clone(self):
         return Declaration(self.name, self.n_dimensions, list(self.sizes), self.is_local, self.ty)
@@ -412,7 +412,7 @@ class Op(Node):
 
 def plus_one(expr):
     if type(expr) == int:
-        return expr + 1
+        return Literal(int, expr + 1)
     elif isinstance(expr, Node):
         return Op('+', [expr.clone(), Literal(int, 1)])
     else:
