@@ -185,20 +185,13 @@ def less_eq_const_name(loop_var):
     return f'{loop_var}_less_eq'
 
 def is_default_greater_eq(loop_var, expr):
-    return \
-        type(expr) == Access and \
-        expr.is_scalar() and \
-        expr.var == greater_eq_const_name(loop_var)
+    return greater_eq_const_name(loop_var) == expr.pprint()
+
 def is_default_less_eq(loop_var, expr):
-    return \
-        type(expr) == Access and \
-        expr.is_scalar() and \
-        expr.var == less_eq_const_name(loop_var)
+    return less_eq_const_name(loop_var) == expr.pprint()
+
 def is_default_step(expr):
-    return \
-        type(expr) == Literal and \
-        expr.ty == int and \
-        expr.val == 1
+    return expr.pprint() == '1'
 
 class LoopTrait:
     def find_stmt(self, stmt):

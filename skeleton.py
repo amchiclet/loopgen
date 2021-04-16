@@ -179,19 +179,17 @@ class TreeSimplifier(Transformer):
             return OpHole(args[0], args[1])
         assert(False)
 
-    # def loop_vars(self, args):
-    #     return args
-
     def loop_shapes(self, args):
         return args
     def loop_shape(self, args):
         return args[0]
     def single_loop_shape(self, args):
-        loop_var = args[0].var
-        default_greater_eq = Access(f'{loop_var}_greater_eq')
-        default_less_eq = Access(f'{loop_var}_less_eq')
-        default_step = Literal(int, 1)
-        return LoopShape(args[0],
+        expr = args[0]
+        loop_var = expr.pprint()
+        default_greater_eq = Expr([Action(None, Access(Var(f'{loop_var}_greater_eq')))])
+        default_less_eq = Expr([Action(None, Access(Var(f'{loop_var}_less_eq')))])
+        default_step = Expr([Action(None, Literal(int, 1))])
+        return LoopShape(expr.clone(),
                          default_greater_eq,
                          default_less_eq,
                          default_step)
@@ -207,9 +205,9 @@ class TreeSimplifier(Transformer):
         assert(merged is not None)
         assert(merged.loop_var is not None)
         loop_var = merged.loop_var.pprint()
-        default_greater_eq = Access(f'{loop_var}_greater_eq')
-        default_less_eq = Access(f'{loop_var}_less_eq')
-        default_step = Literal(int, 1)
+        default_greater_eq = Expr([Action(None, Access(Var(f'{loop_var}_greater_eq')))])
+        default_less_eq = Expr([Action(None, Access(Var(f'{loop_var}_less_eq')))])
+        default_step = Expr([Action(None, Literal(int, 1))])
         return merged.build(default_greater_eq,
                             default_less_eq,
                             default_step)
@@ -238,28 +236,8 @@ class TreeSimplifier(Transformer):
                 decls.append(arg)
             elif type(arg) in [AbstractLoop, Assignment]:
                 body.append(arg)
-            # elif type(arg) == Const:
-            #     consts.append(arg)
             else:
                 raise RuntimeError('Unsupported syntax in main program')
-        # Add implicit constants that are created when the bounds and steps
-        # of loop vars are not explicitly stated
-        # non_consts = set()
-        # for decl in decls:
-        #     non_consts.add(decl.name)
-        # for stmt in body:
-        #     for loop in get_loops(stmt):
-        #         for loop_shape in loop.loop_shapes:
-        #             non_consts.add(loop_var.var)
-        # consts_set = set()
-        # for stmt in body:
-        #     for access in get_accesses(stmt):
-        #         if not access.var.is_hole():
-        #             if access.var.name not in non_consts:
-        #                 consts_set.add(access.var.name)
-        # consts = [Const(name)
-        #           for name in sorted(list(consts_set))]
-        # return Program(decls, body, consts)
         return Program(decls, body, [])
 
 def parse_str(code, start="start"):
