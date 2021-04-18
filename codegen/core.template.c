@@ -9,9 +9,9 @@
 #include <math.h>
 #include <string.h>
 
-${core_externs}
+${scalar_externs}
 
-unsigned long long core(${core_params}) {
+unsigned long long core(${array_params}) {
   struct timespec before, after;
   clock_gettime(CLOCK_MONOTONIC, &before);
 
