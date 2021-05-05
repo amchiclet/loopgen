@@ -12,6 +12,7 @@
 ${scalar_externs}
 
 unsigned long long core(${array_params}) {
+${locals}
   struct timespec before, after;
   clock_gettime(CLOCK_MONOTONIC, &before);
 

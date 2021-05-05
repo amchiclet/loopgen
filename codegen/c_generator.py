@@ -5,16 +5,20 @@ from pattern_ast import (Declaration, Literal, Hex, Assignment,
                          Access, LoopShape, AbstractLoop, Op, Program)
 from constant_assignment import VariableMap
 
-def loop_header(loop_var, begin, end):
-    return (f'for (int {loop_var} = {begin}; '
+def loop_header(loop_var, loop_var_ty, begin, end):
+    decl = f'{loop_var_ty} {loop_var}' if loop_var_ty else loop_var
+    return (f'for ({decl} = {begin}; '
             f'{loop_var} <= {end}; '
             f'++{loop_var}) {{')
 
 def spaces(indent):
     return '  ' * indent
 
+def is_local(decl):
+    return decl.is_local
+
 def is_nonlocal(decl):
-    return not decl.is_local
+    return not is_local(decl)
 
 def is_array(decl):
     return decl.n_dimensions > 0
@@ -116,7 +120,12 @@ class CGenerator:
         # open loop header
         ws = self.no_indent()
         for loop_var, begin, end in zip(loop_vars, min_indices, max_indices):
-            lines.append(f'{ws}{loop_header(loop_var, begin, end)}')
+            loop_var_ty = 'int'
+            for decl in self.iterate_decls():
+                if loop_var == decl.name:
+                    loop_var_ty = ''
+                    break
+            lines.append(f'{ws}{loop_header(loop_var, loop_var_ty, begin, end)}')
             ws = self.indent_in()
 
         # body
@@ -218,6 +227,15 @@ class CGenerator:
             for decl in self.iterate_decls(is_nonlocal_scalar)
         ])
 
+    def define_locals(self):
+        lines = []
+        ws = self.no_indent()
+        for decl in self.iterate_decls(is_local):
+            lines.append(f'{self.decl(decl)};')
+            if self.init_value_map.has_range(decl.name):
+                lines.append(self.initialize_value(decl))
+        return '\n'.join(lines)
+
     def array_params(self):
         return ', '.join([
             self.decl(decl, is_restrict=True)
@@ -294,7 +312,7 @@ def generate_code(output_dir, instance, init_value_map=None, template_dir=None):
     cgen = CGenerator(instance, init_value_map)
     template_dict = {
         'data_defs': cgen.data_defs(),
-
+        'locals': cgen.define_locals(),
         'init_scalars_code': cgen.initialize_scalars_code(),
         'init_arrays_code': cgen.initialize_arrays_code(),
         'allocate_arrays_code': cgen.allocate_arrays_code(),
