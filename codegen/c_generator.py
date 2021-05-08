@@ -214,7 +214,7 @@ class CGenerator:
         ws = self.indent_in()
         lines.append(f'{ws}float total = 0.0;')
 
-        for decl in self.iterate_decls():
+        for decl in self.iterate_decls(is_nonlocal):
             lines.append(self.accumulate_checksum(decl))
 
         lines.append(f'{ws}return total;')
