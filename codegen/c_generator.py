@@ -155,24 +155,19 @@ class CGenerator:
         lines = []
         def generate_body(loop_vars):
             if decl.ty == 'float':
-                rand = 'frand'
-                vals = (0.0, 1.0)
+                val = 'frand(0.0, 1.0)'
             elif decl.ty == 'double':
-                rand = 'drand'
-                vals = (0.0, 1.0)
+                val = 'drand(0.0, 1.0)'
             elif decl.ty == 'int':
-                rand = 'irand'
-                vals = (0, 10)
+                val = 'irand(0, 10)'
             else:
                 raise RuntimeError(f'Unsupported type {decl.ty}')
 
             # Override default if it is in init_value_map
-            if self.init_value_map.has_range(decl.name):
-                vals = self.init_value_map.get_range(decl.name)
+            if decl.name in self.init_value_map:
+                val = self.init_value_map[decl.name]
 
-            name = decl.name if not is_array(decl) else f'(*{ptr(decl).name})'
-            name = decl.name
-            return f'{self.no_indent()}{access(name, loop_vars)} = {rand}{vals};'
+            return f'{self.no_indent()}{access(decl.name, loop_vars)} = {val};'
         lines.append(self.nested_loops(self.access_bounds[decl.name],
                                        generate_body))
         return '\n'.join(lines)
@@ -180,11 +175,6 @@ class CGenerator:
     def initialize_arrays_code(self):
         lines = []
         self.indent_in()
-        # # convert arrays to their names
-        # for decl in self.iterate_decls(is_nonlocal_array):
-        #     ptr_decl = ptr(decl)
-        #     cast = f'{self.no_indent()}{ptr_decl.ty} {ptr_decl.name} = {self.cast_array_ptr(decl)};'
-        #     lines.append(cast)
         for decl in self.iterate_decls(is_nonlocal_array):
             print('check', decl.pprint())
             lines.append(self.initialize_value(decl))
@@ -293,7 +283,7 @@ def generate_code(output_dir, instance, init_value_map=None, template_dir=None):
     if template_dir is None:
         template_dir = 'codegen'
     if init_value_map is None:
-        init_value_map = VariableMap()
+        init_value_map = {}
 
     # setup directories
     Path(output_dir).mkdir(parents=True, exist_ok=True)
