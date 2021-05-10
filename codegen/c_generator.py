@@ -137,11 +137,11 @@ class CGenerator:
 
         return '\n'.join(lines)
         
-    def nested_loops(self, bound, generate_body):
-        loop_vars = [f'i{depth}' for depth in range(len(bound.min_indices))]
+    def nested_loops(self, min_indices, max_indices, generate_body):
+        loop_vars = [f'i{depth}' for depth in range(len(min_indices))]
         return self.nested_loops_full(loop_vars,
-                                      bound.min_indices,
-                                      bound.max_indices,
+                                      min_indices,
+                                      max_indices,
                                       generate_body)
 
     def canonicalize_name(self, decl):
@@ -150,6 +150,15 @@ class CGenerator:
             return [f'{ws}{self.decl(decl)} = *{ptr(decl).name};']
         else:
             return []
+
+    def determine_max_indices(self, decl):
+        max_indices = []
+        for declared_size, analyzed_bound in zip(decl.sizes, self.access_bounds[decl.name].max_indices):
+            if type(declared_size) == Literal:
+                max_indices.append(analyzed_bound)
+            else:
+                max_indices.append(declared_size.pprint())
+        return max_indices
 
     def initialize_value(self, decl):
         lines = []
@@ -168,7 +177,8 @@ class CGenerator:
                 val = self.init_value_map[decl.name]
 
             return f'{self.no_indent()}{access(decl.name, loop_vars)} = {val};'
-        lines.append(self.nested_loops(self.access_bounds[decl.name],
+        lines.append(self.nested_loops(self.access_bounds[decl.name].min_indices,
+                                       self.determine_max_indices(decl),
                                        generate_body))
         return '\n'.join(lines)
 
@@ -195,7 +205,8 @@ class CGenerator:
             name = decl.name if not is_array(decl) else f'(*{ptr(decl).name})'
             name = decl.name
             return f'{self.no_indent()}total += {access(name, loop_vars)};'
-        lines.append(self.nested_loops(self.access_bounds[decl.name],
+        lines.append(self.nested_loops(self.access_bounds[decl.name].min_indices,
+                                       self.determine_max_indices(decl),
                                        generate_body))
         return '\n'.join(lines)
 
@@ -222,7 +233,7 @@ class CGenerator:
         ws = self.no_indent()
         for decl in self.iterate_decls(is_local):
             lines.append(f'{self.decl(decl)};')
-            if self.init_value_map.has_range(decl.name):
+            if decl.name in self.init_value_map:
                 lines.append(self.initialize_value(decl))
         return '\n'.join(lines)
 
