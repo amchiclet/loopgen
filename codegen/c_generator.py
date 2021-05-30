@@ -81,10 +81,20 @@ class CGenerator:
             declaration = declaration.replace('[', '[restrict ', 1)
         return declaration
 
-    def data_defs(self):
+    def define_scalars(self):
         lines = []
         for decl in self.iterate_decls(is_nonlocal_scalar):
             lines.append(f'{self.decl(decl)};')
+        return '\n'.join(lines)
+
+    def define_arrays(self):
+        lines = []
+        for decl in self.iterate_decls(is_nonlocal_array):
+            lines.append(f'{self.decl(decl)};')
+        return '\n'.join(lines)
+
+    def define_arrays_as_pointers(self):
+        lines = []
         for decl in self.iterate_decls(is_nonlocal_array):
             decl_ptr = ptr(decl)
             scalar = Declaration(decl_ptr.name, 0, ty=decl.ty)
@@ -228,6 +238,12 @@ class CGenerator:
             for decl in self.iterate_decls(is_nonlocal_scalar)
         ])
 
+    def array_externs(self):
+        return '\n'.join([
+            f'extern {self.decl(decl)};'
+            for decl in self.iterate_decls(is_nonlocal_array)
+        ])
+
     def define_locals(self):
         lines = []
         ws = self.no_indent()
@@ -312,7 +328,9 @@ def generate_code(output_dir, instance, init_value_map=None, template_dir=None):
     # prepare template dictionary
     cgen = CGenerator(instance, init_value_map)
     template_dict = {
-        'data_defs': cgen.data_defs(),
+        'define_scalars': cgen.define_scalars(),
+        'define_arrays': cgen.define_arrays(),
+        'define_arrays_as_pointers': cgen.define_arrays_as_pointers(),
         'locals': cgen.define_locals(),
         'init_scalars_code': cgen.initialize_scalars_code(),
         'init_arrays_code': cgen.initialize_arrays_code(),
@@ -321,6 +339,7 @@ def generate_code(output_dir, instance, init_value_map=None, template_dir=None):
         'core_code': cgen.core_code(),
 
         'scalar_externs': cgen.scalar_externs(),
+        'array_externs': cgen.array_externs(),
         'array_params': cgen.array_params(),
         'array_args': cgen.array_args(),
     }
