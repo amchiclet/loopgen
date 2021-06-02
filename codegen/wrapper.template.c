@@ -9,7 +9,8 @@
 #include <math.h>
 #include <string.h>
 
-${data_defs}
+${define_scalars}
+${define_arrays_as_pointers}
 
 void allocate_arrays() {
 ${allocate_arrays_code}
