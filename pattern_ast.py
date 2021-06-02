@@ -36,20 +36,21 @@ class Node:
         raise NotImplementedError(type(self))
 
 class Const(Node):
-    def __init__(self, name):
+    def __init__(self, name, attributes=None):
         self.name = name
+        self.attributes = {} if attributes is None else attributes
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
         return f'{ws}const {self.name};'
     def clone(self):
-        return Const(self.name)
+        return Const(self.name, self.attributes.copy())
     def is_syntactically_equal(self, other):
         return type(other) == Const and self.name == other.name
     def replace(self, replacer):
         self.name = replace(self.name, replacer)
 
 class Declaration(Node):
-    def __init__(self, name, n_dimensions, sizes=None, is_local=False, ty=None):
+    def __init__(self, name, n_dimensions, sizes=None, is_local=False, ty=None, attributes=None):
         self.name = name
         self.n_dimensions = n_dimensions
         if sizes is None:
@@ -58,7 +59,7 @@ class Declaration(Node):
             self.sizes = sizes
         self.is_local = is_local
         self.ty = ty
-        # self.surrounding_loop = None
+        self.attributes = {} if attributes is None else attributes
     def pprint(self, indent=0):
         localness = 'local' if self.is_local else 'declare'
         ty = ' ' if self.ty is None else f' {self.ty} '
@@ -66,7 +67,9 @@ class Declaration(Node):
         dimensions = [f'[{size.pprint() if size is not None else ""}]' for size in self.sizes]
         return f'{ws}{localness}{ty}{self.name}{"".join(dimensions)};'
     def clone(self):
-        return Declaration(self.name, self.n_dimensions, list(self.sizes), self.is_local, self.ty)
+        return Declaration(self.name, self.n_dimensions,
+                           list(self.sizes), self.is_local, self.ty,
+                           self.attributes.copy())
     def is_syntactically_equal(self, other):
         return (
             type(other) == Declaration and
@@ -79,13 +82,14 @@ class Declaration(Node):
         self.name = replace(self.name, replacer)
 
 class Literal(Node):
-    def __init__(self, ty, val):
+    def __init__(self, ty, val, attributes=None):
         self.ty = ty
         self.val = val
+        self.attributes = {} if attributes is None else attributes
     def pprint(self, indent=0):
         return f'{self.val}'
     def clone(self):
-        return Literal(self.ty, self.val)
+        return Literal(self.ty, self.val, self.attributes.copy())
     def is_syntactically_equal(self, other):
         return self.ty == other.ty and self.val == other.val
     def replace(self, replacer):
@@ -95,14 +99,15 @@ class Literal(Node):
         return f'{self.val}'
 
 class Hex(Literal):
-    def __init__(self, str_val):
+    def __init__(self, str_val, attributes=None):
         self.ty = bytes
         self.str_val = str_val
         self.val = bytes.fromhex(str_val[2:])  # remove the 0x
+        self.attributes = {} if attributes is None else attributes
     def pprint(self, indent=0):
         return f'{self.str_val}'
     def clone(self):
-        return Hex(self.str_val)
+        return Hex(self.str_val, self.attributes.copy())
     def is_syntactically_equal(self, other):
         return (type(other) == Hex and
                 self.ty == other.ty and
@@ -115,7 +120,7 @@ class Hex(Literal):
         return f'{self.str_val}'
 
 class Assignment(Node):
-    def __init__(self, lhs, rhs):
+    def __init__(self, lhs, rhs, attributes=None):
         assert(type(lhs) == Access)
         self.lhs = lhs
         self.lhs.is_write = True
@@ -125,13 +130,14 @@ class Assignment(Node):
             access.parent_stmt = self
             for index in access.indices:
                 index.parent_stmt = self
+        self.attributes = {} if attributes is None else attributes
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
         return f'{ws}{self.lhs.pprint()} = {self.rhs.pprint()};'
     def dep_print(self, refs):
         return f'{self.lhs.dep_print(refs)} = {self.rhs.dep_print(refs)};'
     def clone(self):
-        cloned = Assignment(self.lhs.clone(), self.rhs.clone())
+        cloned = Assignment(self.lhs.clone(), self.rhs.clone(), self.attributes.copy())
         return cloned
     def is_syntactically_equal(self, other):
         return (
@@ -158,11 +164,12 @@ def replace_each(l, replacer):
     return [replace(i, replacer) for i in l]
 
 class Access(Node):
-    def __init__(self, var, indices=None):
+    def __init__(self, var, indices=None, attributes=None):
         self.var = var
         self.indices = indices if indices else []
         self.is_write = False
         self.parent_stmt = None
+        self.attributes = {} if attributes is None else attributes
     def is_scalar(self):
         return len(self.indices) == 0
     def pprint(self, indent=0):
@@ -176,7 +183,7 @@ class Access(Node):
             return self.pprint()
     def clone(self):
         cloned_indices = [i.clone() for i in self.indices]
-        cloned = Access(self.var, cloned_indices)
+        cloned = Access(self.var, cloned_indices, self.attributes.copy())
         cloned.is_write = self.is_write
         return cloned
     def is_syntactically_equal(self, other):
@@ -288,18 +295,18 @@ class LoopShape(Node):
         self.less_eq = replace(self.less_eq, replacer)
         self.step = replace(self.step, replacer)
 
-class LoopTrait:
-    def find_stmt(self, stmt):
-        return self.body.index(stmt)
-    def remove_stmt(self, stmt):
-        self.body.remove(stmt)
-    def insert_stmts(self, i, stmts):
-        self.body[i:i] = stmts
-        for stmt in stmts:
-            stmt.surrounding_loop = self
+# class LoopTrait:
+#     def find_stmt(self, stmt):
+#         return self.body.index(stmt)
+#     def remove_stmt(self, stmt):
+#         self.body.remove(stmt)
+#     def insert_stmts(self, i, stmts):
+#         self.body[i:i] = stmts
+#         for stmt in stmts:
+#             stmt.surrounding_loop = self
 
-class AbstractLoop(Node, LoopTrait):
-    def __init__(self, loop_shapes, body):
+class AbstractLoop(Node):
+    def __init__(self, loop_shapes, body, attributes=None):
         self.loop_shapes = loop_shapes
         for loop_shape in loop_shapes:
             for access in get_accesses(loop_shape.loop_var):
@@ -314,6 +321,7 @@ class AbstractLoop(Node, LoopTrait):
         self.surrounding_loop = None
         for stmt in body:
             stmt.surrounding_loop = self
+        self.attributes = {} if attributes is None else attributes
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
         loop_vars = []
@@ -328,7 +336,7 @@ class AbstractLoop(Node, LoopTrait):
     def clone(self):
         cloned_loop_shapes = [shape.clone() for shape in self.loop_shapes]
         cloned_body = [stmt.clone() for stmt in self.body]
-        cloned_loop = AbstractLoop(cloned_loop_shapes, cloned_body)
+        cloned_loop = AbstractLoop(cloned_loop_shapes, cloned_body, self.attributes.copy())
         return cloned_loop
     def is_syntactically_equal(self, other):
         return (
@@ -343,9 +351,10 @@ class AbstractLoop(Node, LoopTrait):
             stmt.surrounding_loop = self
 
 class Op(Node):
-    def __init__(self, op, args):
+    def __init__(self, op, args, attributes=None):
         self.op = op
         self.args = args
+        self.attributes = {} if attributes is None else attributes
     def precedence(self):
         if len(self.args) == 1:
             return 200
@@ -400,7 +409,7 @@ class Op(Node):
         return self.generic_print(formatter)
     def clone(self):
         cloned_args = [arg.clone() for arg in self.args]
-        return Op(self.op, cloned_args)
+        return Op(self.op, cloned_args, self.attributes.copy())
     def is_syntactically_equal(self, other):
         return (
             type(other) == Op and
@@ -418,8 +427,8 @@ def plus_one(expr):
     else:
         raise RuntimeError(f'plus_one: unsupported type {type(expr)}')
 
-class Program(Node, LoopTrait):
-    def __init__(self, decls, body, consts):
+class Program(Node):
+    def __init__(self, decls, body, consts, attributes=None):
         self.decls = decls
         self.body = body
         self.consts = consts
@@ -430,6 +439,7 @@ class Program(Node, LoopTrait):
         self.loop_shapes = []
         for stmt in body:
             stmt.surrounding_loop = self
+        self.attributes = {} if attributes is None else attributes
     def is_local(self, name):
         for decl in self.decls:
             if decl.name == name:
@@ -450,7 +460,7 @@ class Program(Node, LoopTrait):
         cloned_decls = [decl.clone() for decl in self.decls]
         cloned_body = [stmt.clone() for stmt in self.body]
         cloned_consts = [const.clone() for const in self.consts]
-        return Program(cloned_decls, cloned_body, cloned_consts)
+        return Program(cloned_decls, cloned_body, cloned_consts, self.attributes.copy())
     def is_syntactically_equal(self, other):
         return (
             type(other) == Program and
