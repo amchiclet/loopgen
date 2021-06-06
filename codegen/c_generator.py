@@ -165,9 +165,10 @@ class CGenerator:
         max_indices = []
         for declared_size, analyzed_bound in zip(decl.sizes, self.access_bounds[decl.name].max_indices):
             if type(declared_size) == Literal:
-                max_indices.append(analyzed_bound)
+                max_index = analyzed_bound
             else:
-                max_indices.append(declared_size.pprint())
+                max_index = Op('-', [declared_size.clone(), Literal(int, 1)]).pprint()
+            max_indices.append(max_index)
         return max_indices
 
     def initialize_value(self, decl):
@@ -187,9 +188,9 @@ class CGenerator:
                 val = self.init_value_map[decl.name]
 
             return f'{self.no_indent()}{access(decl.name, loop_vars)} = {val};'
-        lines.append(self.nested_loops(self.access_bounds[decl.name].min_indices,
-                                       self.determine_max_indices(decl),
-                                       generate_body))
+        begins = self.access_bounds[decl.name].min_indices
+        ends = self.determine_max_indices(decl)
+        lines.append(self.nested_loops(begins, ends, generate_body))
         return '\n'.join(lines)
 
     def initialize_arrays_code(self):
