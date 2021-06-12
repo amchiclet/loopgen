@@ -8,6 +8,10 @@ class TypeAssignment:
         self.map[var_name] = [ty]
     def set_choices(self, var_name, tys):
         self.map[var_name] = tys
+    def can_be(self, var_name, ty):
+        if var_name not in self.map:
+            return ty in self.default_types
+        return ty in self.map[var_name]
     def get(self, var_name):
         if var_name in self.map:
             return choice(self.map[var_name])

@@ -19,6 +19,9 @@ class VariableMap:
     def remove_var(self, var):
         if var in self.ranges:
             self.ranges.pop(var)
+    def iterate_ranges(self):
+        for v in self.ranges.keys():
+            yield v, self.get_min(v), self.get_max(v)
     def has_range(self, var):
         return self.has_min(var) and self.has_max(var)
     def get_range(self, var):

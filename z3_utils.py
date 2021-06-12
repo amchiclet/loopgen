@@ -33,8 +33,9 @@ def expr_to_cexpr(expr, cvars):
         if expr.ty == int:
             return expr.val
     elif type(expr) == Access:
-        if expr.is_scalar() and expr.var in cvars:
-            return cvars[expr.var]
+        name = expr.pprint()
+        if name in cvars:
+            return cvars[name]
     elif type(expr) == int:
         return expr
     return None
@@ -44,6 +45,23 @@ def get_scalar_cvars(pattern):
     def maybe_add(access):
         if access.is_scalar() and access.var not in cvars:
             cvars[access.var] = Int(access.var)
+
+    for access in get_accesses(pattern):
+        maybe_add(access)
+    for decl in pattern.decls:
+        for size in decl.sizes:
+            if size is not None:
+                for access in get_accesses(size):
+                    maybe_add(access)
+
+    return cvars
+
+def get_int_cvars(pattern, types):
+    cvars = {}
+    def maybe_add(access):
+        name = access.pprint()
+        if types.can_be(access.var, 'int') and name not in cvars:
+            cvars[name] = Int(name)
 
     for access in get_accesses(pattern):
         maybe_add(access)

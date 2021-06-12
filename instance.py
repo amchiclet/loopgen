@@ -1,7 +1,7 @@
 from pattern_ast import get_accesses, get_loops, gather_loop_shapes, gather_loop_vars, Access, Op, ConstReplacer, Literal, plus_one
 from random import randint, choice, shuffle, uniform
 from loguru import logger
-from z3_utils import expr_to_cexpr, get_scalar_cvars, find_max, find_min
+from z3_utils import expr_to_cexpr, get_scalar_cvars, get_int_cvars, find_max, find_min
 from copy import deepcopy
 from constant_assignment import VariableMap
 from array_access_bound import (
@@ -38,7 +38,7 @@ def generate_loop_shape_constraints(loop_shapes, cvars, var_map):
             constraints.append(i <= i_less_eq)
     return constraints
 
-def generate_bound_constraints(decls, cvars, var_map):
+def generate_bound_constraints_deprecated(decls, cvars, var_map):
     constraints = []
     var_names = [decl.name for decl in decls]
     for var, cvar in cvars.items():
@@ -48,6 +48,15 @@ def generate_bound_constraints(decls, cvars, var_map):
         current_max = var_map.get_max(var)
         constraints.append(cvar >= current_min)
         constraints.append(cvar <= current_max)
+    return constraints
+
+def generate_bound_constraints(decls, cvars, var_map):
+    constraints = []
+    for name, min_val, max_val in var_map.iterate_ranges():
+        if name in cvars:
+            cvar = cvars[name]
+            constraints.append(cvar >= min_val)
+            constraints.append(cvar <= max_val)
     return constraints
 
 class Instance:
@@ -92,9 +101,14 @@ def create_instance(pattern, var_map, max_tries=10000, l=None, types=None):
     if l is None:
         l = logger
 
+    if types is None:
+        types = TypeAssignment()
+
     def try_once():
         random_pattern = replace_constant_variables_blindly(pattern, var_map)
-        cvars = get_scalar_cvars(random_pattern)
+        # cvars = get_scalar_cvars(random_pattern)
+        cvars = get_int_cvars(random_pattern, types)
+        print(cvars)
         accesses = get_accesses(random_pattern)
         cloned_var_map = var_map.clone()
 
@@ -160,10 +174,10 @@ def create_instance(pattern, var_map, max_tries=10000, l=None, types=None):
         if bounds is None:
             return None
 
-        # assign types once we're sure it's a valid program
-        nonlocal types
-        if types is None:
-            types = TypeAssignment()
+        # # assign types once we're sure it's a valid program
+        # nonlocal types
+        # if types is None:
+        #     types = TypeAssignment()
         assign_types(random_pattern, types)
         return Instance(random_pattern, bounds)
 
