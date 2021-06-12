@@ -41,7 +41,7 @@ class Declaration(Node):
     def pprint(self, indent=0):
         localness = 'local' if self.is_local else 'declare'
         ws = space_per_indent * indent * ' '
-        dimensions = [f'[{size if size is not None else ""}]' for size in self.sizes]
+        dimensions = [f'[{size.pprint() if size is not None else ""}]' for size in self.sizes]
         return f'{ws}{localness} {self.name}{"".join(dimensions)};'
     def replace(self, replacer):
         self.name = replace(self.name, replacer)

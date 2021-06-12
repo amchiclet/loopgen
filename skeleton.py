@@ -12,7 +12,7 @@ grammar = '''
     declaration: param | local
     param: "declare" array (dimension)* ";"
     local: "local" array (dimension)* ";"
-    dimension: "[" INT? "]"
+    dimension: "[" expr? "]"
     abstract_loop: "for" "[" loop_shapes "]" "{" seq "}"
 
     loop_shapes: loop_shape ("," loop_shape)*
@@ -88,7 +88,7 @@ from skeleton_ast import AbstractLoop, Assignment, Expr, Access, Action, Program
 class TreeSimplifier(Transformer):
     def dimension(self, args):
         if len(args) > 0:
-            return int(args[0])
+            return args[0]
         else:
             return None
     def declaration(self, args):
