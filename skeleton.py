@@ -234,7 +234,7 @@ class TreeSimplifier(Transformer):
         for arg in args:
             if type(arg) == Declaration:
                 decls.append(arg)
-            elif type(arg) in [AbstractLoop, Assignment]:
+            elif type(arg) in [AbstractLoop, Assignment, StatementHole]:
                 body.append(arg)
             else:
                 raise RuntimeError('Unsupported syntax in main program')
