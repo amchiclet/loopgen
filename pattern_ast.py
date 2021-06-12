@@ -80,6 +80,7 @@ class Declaration(Node):
         )
     def replace(self, replacer):
         self.name = replace(self.name, replacer)
+        self.sizes = replace_each(self.sizes, replacer)
 
 class Literal(Node):
     def __init__(self, ty, val, attributes=None):
