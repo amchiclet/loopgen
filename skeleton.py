@@ -317,3 +317,29 @@ def get_loops(node):
         return {}
     else:
         raise RuntimeError('get_loops: Unhandled type of node ' + str(type(node)))
+
+def generate_from_skeleton(
+        generate,
+        skeleton,
+        n_wanted=1,
+        outputs=None,
+        max_tries=10000):
+    from hashlib import md5
+    n_generated = 0
+    for _ in range(max_tries):
+        output, id_str = generate(skeleton.clone())
+        if output is None:
+            print('failed to generate')
+            continue
+
+        if id_str in outputs:
+            print('duplicate')
+            continue
+
+        outputs[id_str] = output
+        n_generated += 1
+        print(f'Progress: {n_generated} / {n_wanted}')
+        if n_generated == n_wanted:
+            break
+
+    return outputs
