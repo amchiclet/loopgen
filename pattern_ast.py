@@ -120,6 +120,24 @@ class Hex(Literal):
     def dep_print(self, refs):
         return f'{self.str_val}'
 
+class NoOp(Node):
+    def __init__(self, attributes=None):
+        self.surrounding_loop = None
+        self.attributes = {} if attributes is None else attributes
+    def pprint(self, indent=0):
+        ws = space_per_indent * indent * ' '
+        return f'{ws};'
+    def dep_print(self, refs):
+        return f';'
+    def clone(self):
+        return NoOp()
+    def is_syntactically_equal(self, other):
+        return type(other) == NoOp
+    def replace(self, replacer):
+        pass
+    def clone(self):
+        return NoOp(self.attributes.copy())
+
 class Assignment(Node):
     def __init__(self, lhs, rhs, attributes=None):
         assert(type(lhs) == Access)
@@ -510,6 +528,8 @@ def get_accesses(node):
         accesses.update(get_accesses(node.lhs))
         accesses.update(get_accesses(node.rhs))
         return accesses
+    elif isinstance(node, NoOp):
+        return accesses
     elif isinstance(node, Access):
         accesses.add(node)
         for index in node.indices:
@@ -538,14 +558,17 @@ def get_accesses(node):
         raise RuntimeError('Unhandled type of node ' + str(type(node)))
 
 def get_ordered_assignments(node):
-    assignments = []
     if isinstance(node, Assignment):
         return [node]
+    elif isinstance(node, NoOp):
+        return []
     elif isinstance(node, AbstractLoop):
+        assignments = []
         for stmt in node.body:
             assignments += get_ordered_assignments(stmt)
         return assignments
     elif isinstance(node, Program):
+        assignments = []
         for stmt in node.body:
             assignments += get_ordered_assignments(stmt)
         return assignments
@@ -565,6 +588,8 @@ def get_loops(node):
         return loops
     elif isinstance(node, Assignment):
         return set()
+    elif isinstance(node, NoOp):
+        return set()
     else:
         raise RuntimeError('get_loops: Unhandled type of node ' + str(type(node)))
 
@@ -580,6 +605,8 @@ def get_ordered_loops(node):
             loops += get_ordered_loops(stmt)
         return loops
     elif isinstance(node, Assignment):
+        return []
+    elif isinstance(node, NoOp):
         return []
     else:
         raise RuntimeError('get_loops: Unhandled type of node ' + str(type(node)))

@@ -25,6 +25,14 @@ class FixedChoiceFactory:
             return sample
         return choice
 
+class ChoiceRecorder:
+    def __init__(self):
+        self.choices = []
+    def choice(self, population):
+        i = random.randint(0, len(population)-1)
+        self.choices.append(i)
+        return population[i]
+
 def space_to_strides(space):
     strides = [1]
     for size in reversed(space):

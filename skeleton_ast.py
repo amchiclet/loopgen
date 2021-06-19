@@ -106,6 +106,15 @@ class Assignment(Node):
     def clone(self):
         return Assignment(self.lhs.clone(), self.rhs.clone())
 
+class NoOp(Node):
+    def pprint(self, indent=0):
+        ws = space_per_indent * indent * ' '
+        return f'{ws};'
+    def replace(self, replacer):
+        pass
+    def clone(self):
+        return NoOp()
+
 class Hole(Node):
     def __init__(self, hole_name, family_name):
         self.hole_name = hole_name

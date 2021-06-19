@@ -21,8 +21,9 @@ grammar = '''
     loop_shape_part: LOOP_SHAPE_PREFIX? expr
     LOOP_SHAPE_PREFIX: "<=" | ">=" | "+="
 
-    statement: assignment | abstract_loop
+    statement: assignment | abstract_loop | no_op
     assignment: access "=" expr ";"
+    no_op: ";"
 
     expr: conditional
     conditional: logical_or "?" logical_or ":" conditional | logical_or
@@ -79,7 +80,7 @@ grammar = '''
 # DEC_NUMBER: /0|[1-9]\d*/i
 
 
-from pattern_ast import Assignment, Access, AbstractLoop, Program, get_accesses, Declaration, Const, Literal, Op, LoopShape, get_loops, get_accesses, LoopShapeBuilder, Hex
+from pattern_ast import Assignment, Access, AbstractLoop, Program, get_accesses, Declaration, Const, Literal, Op, LoopShape, get_loops, get_accesses, LoopShapeBuilder, Hex, NoOp
 
 class TreeSimplifier(Transformer):
     def dimension(self, args):
@@ -176,6 +177,8 @@ class TreeSimplifier(Transformer):
 
     def assignment(self, args):
         return Assignment(args[0], args[1])
+    def no_op(self, args):
+        return NoOp()
     def statement(self, args):
         stmt = args[0]
         return stmt

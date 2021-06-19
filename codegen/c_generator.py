@@ -2,7 +2,7 @@ from pathlib import Path
 from shutil import copy2
 from string import Template
 from pattern_ast import (Declaration, Literal, Hex, Assignment,
-                         Access, LoopShape, AbstractLoop, Op, Program)
+                         Access, LoopShape, AbstractLoop, Op, Program, NoOp)
 from constant_assignment import VariableMap
 
 def loop_header(loop_var, loop_var_ty, begin, end):
@@ -197,7 +197,6 @@ class CGenerator:
         lines = []
         self.indent_in()
         for decl in self.iterate_decls(is_nonlocal_array):
-            print('check', decl.pprint())
             lines.append(self.initialize_value(decl))
         self.indent_out()
         return '\n'.join(lines)
@@ -273,9 +272,11 @@ class CGenerator:
     def ast(self, node):
         ty = type(node)
         if ty == Program:
+            self.indent_in()
             lines = []
             for stmt in node.body:
                 lines.append(self.ast(stmt))
+            self.indent_out()
             return '\n'.join(lines)
         elif ty == AbstractLoop:
             # get loop vars, min_indices, max_indices
@@ -301,6 +302,8 @@ class CGenerator:
             return f'{self.no_indent()}{node.pprint()}'
         elif ty == Op or ty == Access or ty == Hex or ty == Literal:
             return node.pprint()
+        elif ty == NoOp:
+            return f'{self.no_indent()}{node.pprint()}'
         else:
             assert(False)
 

@@ -25,9 +25,10 @@ grammar = '''
 
     seq: statement*
 
-    statement: assignment | abstract_loop | statement_hole
+    statement: assignment | abstract_loop | statement_hole | no_op
     assignment: expr "=" expr ";"
     statement_hole: "$" CNAME (":" CNAME)? "$"
+    no_op: ";"
 
     expr: action+
     action: op? atom
@@ -83,7 +84,7 @@ grammar = '''
 # DEC_NUMBER: /0|[1-9]\d*/i
 
 
-from skeleton_ast import AbstractLoop, Assignment, Expr, Access, Action, Program, Declaration, Const, Literal, Hex, Paren, NameHole, StatementHole, ExpressionHole, Var, Hole, OpHole, Op, LoopShapeBuilder, LoopShape
+from skeleton_ast import AbstractLoop, Assignment, Expr, Access, Action, Program, Declaration, Const, Literal, Hex, Paren, NameHole, StatementHole, ExpressionHole, Var, Hole, OpHole, Op, LoopShapeBuilder, LoopShape, NoOp
 
 class TreeSimplifier(Transformer):
     def dimension(self, args):
@@ -166,6 +167,8 @@ class TreeSimplifier(Transformer):
         elif len(args) == 2:
             return StatementHole(args[0], args[1])
         assert(False)
+    def no_op(self, args):
+        return NoOp()
     def expr_hole(self, args):
         if len(args) == 1:
             return ExpressionHole(args[0], '_')
