@@ -41,12 +41,6 @@ class DependenceGraph:
     def iterate_dependences(self):
         return iter(self.graph.values())
     def add(self, source_ref, sink_ref, direction_vector):
-        print(source_ref.pprint(), 'inside', source_ref.parent_stmt.pprint())
-        print(sink_ref.pprint(), 'inside', sink_ref.parent_stmt.pprint())
-        print(source_ref.attributes)
-        print(source_ref.parent_stmt.attributes)
-        print(sink_ref.attributes)
-        print(sink_ref.parent_stmt.attributes)
         source_id = source_ref.parent_stmt.attributes['node_id']
         sink_id = sink_ref.parent_stmt.attributes['node_id']
         key = (source_id, sink_id)

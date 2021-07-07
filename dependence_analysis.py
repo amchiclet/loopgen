@@ -42,11 +42,7 @@ def assign_node_ids(program):
                 assign(arg)
 
     program_w_attributes = program.clone()
-    print('cloned')
-    print(program_w_attributes.pprint())
     assign(program_w_attributes)
-    for stmt in program_w_attributes.body:
-        print(stmt.pprint(), stmt.attributes)
     return program_w_attributes
 
 def analyze_dependence(program):
@@ -73,7 +69,6 @@ def analyze_dependence(program):
                                                        ref2_then_ref1_dv)
                 if dv2 is not None:
                     logger.debug(f'Valid direction vector: {dv2}')
-                    print(ref1.attributes, ref2.attributes)
                     graph.add(ref2, ref1, dv2)
     return graph, program_w_attributes
 
@@ -455,7 +450,6 @@ def get_min_distance(dep):
     min_val = find_min(constraints, cexpr)
     if min_val is None:
         return False
-    print('min_val! ', min_val)
 
     min_val_dimensions = []
     remaining = min_val
