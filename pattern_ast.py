@@ -314,17 +314,17 @@ class LoopShape(Node):
         self.less_eq = replace(self.less_eq, replacer)
         self.step = replace(self.step, replacer)
 
-# class LoopTrait:
-#     def find_stmt(self, stmt):
-#         return self.body.index(stmt)
-#     def remove_stmt(self, stmt):
-#         self.body.remove(stmt)
-#     def insert_stmts(self, i, stmts):
-#         self.body[i:i] = stmts
-#         for stmt in stmts:
-#             stmt.surrounding_loop = self
+class LoopTrait:
+    def find_stmt(self, stmt):
+        return self.body.index(stmt)
+    def remove_stmt(self, stmt):
+        self.body.remove(stmt)
+    def insert_stmts(self, i, stmts):
+        self.body[i:i] = stmts
+        for stmt in stmts:
+            stmt.surrounding_loop = self
 
-class AbstractLoop(Node):
+class AbstractLoop(LoopTrait):
     def __init__(self, loop_shapes, body, attributes=None):
         self.loop_shapes = loop_shapes
         for loop_shape in loop_shapes:
@@ -446,7 +446,7 @@ def plus_one(expr):
     else:
         raise RuntimeError(f'plus_one: unsupported type {type(expr)}')
 
-class Program(Node):
+class Program(LoopTrait):
     def __init__(self, decls, body, consts, attributes=None):
         self.decls = decls
         self.body = body
