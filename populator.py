@@ -86,6 +86,13 @@ class PopulateParameters:
 
     def add(self, family_name, choices, is_finite=False, choice_function=random.choice):
         assert(family_name not in self.available)
+        self.set(family_name, choices, is_finite, choice_function)
+        # self.available[family_name] = list(choices)
+        # self.choice_functions[family_name] = choice_function
+        # if is_finite:
+        #     self.finite_families.add(family_name)
+
+    def set(self, family_name, choices, is_finite=False, choice_function=random.choice):
         self.available[family_name] = list(choices)
         self.choice_functions[family_name] = choice_function
         if is_finite:

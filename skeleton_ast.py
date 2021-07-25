@@ -218,6 +218,8 @@ class LoopShapeBuilder:
         self.greater_eq = None
         self.less_eq = None
         self.step = None
+    def pprint(self):
+        return f'{self.loop_var} >={self.greater_eq} <={self.less_eq}, +={self.step}'
     def set_shape_part(self, expr, prefix=None):
         if prefix is None:
             self.loop_var = expr

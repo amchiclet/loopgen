@@ -1,4 +1,4 @@
-from lark import Lark, Transformer
+from lark import Lark, Transformer, Tree
 
 # Note:
 # Operator precedence is based on
@@ -71,6 +71,7 @@ grammar = '''
     %import common.CNAME
     %import common.INT
     %import common.FLOAT
+    %import common.DECIMAL
     %ignore WS
     %ignore COMMENT
 '''
@@ -137,7 +138,6 @@ class TreeSimplifier(Transformer):
     def access(self, args):
         return args[0]
     def expr(self, args):
-        # return Expr(args[0])
         return Expr(args)
     def action(self, args):
         if len(args) == 1:
@@ -211,9 +211,10 @@ class TreeSimplifier(Transformer):
         default_greater_eq = Expr([Action(None, Access(Var(f'{loop_var}_greater_eq')))])
         default_less_eq = Expr([Action(None, Access(Var(f'{loop_var}_less_eq')))])
         default_step = Expr([Action(None, Literal(int, 1))])
-        return merged.build(default_greater_eq,
-                            default_less_eq,
-                            default_step)
+        built = merged.build(default_greater_eq,
+                             default_less_eq,
+                             default_step)
+        return built
     def loop_shape_part(self, args):
         loop_shape_builder = LoopShapeBuilder()
         if len(args) == 1:
@@ -243,9 +244,9 @@ class TreeSimplifier(Transformer):
                 raise RuntimeError('Unsupported syntax in main program')
         return Program(decls, body, [])
 
-def parse_str(code, start="start"):
-    parser = Lark(grammar)
-    lark_ast = parser.parse(code, start=start)
+def parse_str(code, start_rule="start"):
+    parser = Lark(grammar, start=start_rule)
+    lark_ast = parser.parse(code)
     tree_simplifier = TreeSimplifier()
     abstract_ast = tree_simplifier.transform(lark_ast)
     return abstract_ast
