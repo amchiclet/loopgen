@@ -11,19 +11,22 @@ class IncrementalChoice:
         self.index += 1
         return sample
 
-class FixedChoiceFactory:
-    def __init__(self, choices):
+class FixedChoice:
+    def __init__(self, choices, index=0):
         self.choices = choices
-        self.index = 0
+        self.index = index
+    def choice(self, population):
+        assert(self.index < len(self.choices))
+        sample = population[self.choices[self.index]]
+        self.index += 1
+        return sample
+
+class FixedChoiceFactory:
+    def __init__(self, choices, index=0):
+        self.choices = choices
+        self.index = index
     def create_choice_function(self):
-        index = self.index
-        def choice(population):
-            nonlocal index
-            assert(index < len(self.choices))
-            sample = population[self.choices[index]]
-            index += 1
-            return sample
-        return choice
+        return FixedChoice(self.choices, self.index).choice
 
 class ChoiceRecorder:
     def __init__(self):
