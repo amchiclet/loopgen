@@ -2,13 +2,13 @@ from loguru import logger
 
 space_per_indent = 2
 
-def get_precedence(op=None):
-    if op in ['+', '-']:
-        return 3
-    elif op in ['*', '/']:
-        return 4
-    else:
-        return 5
+# def get_precedence(op=None):
+#     if op in ['+', '-']:
+#         return 3
+#     elif op in ['*', '/']:
+#         return 4
+#     else:
+#         return 5
 
 def is_list_syntactically_equal(list1, list2):
     if len(list1) != len(list2):
@@ -31,7 +31,8 @@ class Node:
     def is_syntactically_equal(self, other):
         raise NotImplementedError(type(self))
     def precedence(self):
-        return get_precedence()
+        raise NotImplementedError(type(self))
+        # return get_precedence()
     def replace(self, replacer):
         raise NotImplementedError(type(self))
 
@@ -140,7 +141,6 @@ class NoOp(Node):
 
 class Assignment(Node):
     def __init__(self, lhs, rhs, attributes=None):
-        assert(type(lhs) == Access)
         self.lhs = lhs
         self.lhs.is_write = True
         self.rhs = rhs
@@ -377,7 +377,7 @@ class Op(Node):
     def precedence(self):
         if len(self.args) == 1:
             return 200
-        if self.op in ['*', '/', '%']:
+        if self.op in ['*', '/', '%'] or type(self.op) == OpHole:
             return 150
         if self.op in ['+', '-']:
             return 140
@@ -404,14 +404,18 @@ class Op(Node):
         args = []
         for arg in self.args:
             arg_str = formatter(arg)
-            is_atom = type(arg) in [Access, Literal]
+            is_atom = type(arg) in [Access, Literal, ExpressionHole]
             if not is_atom and self.precedence() >= arg.precedence():
                 arg_str = f'({arg_str})'
             args.append(arg_str)
         if len(args) == 1:
             return f'{self.op}{args[0]}'
         elif len(args) == 2:
-            return f'{args[0]} {self.op} {args[1]}'
+            if isinstance(self.op, Node):
+                op = self.op.pprint()
+            else:
+                op = self.op
+            return f'{args[0]} {op} {args[1]}'
         elif len(args) == 3:
             assert(self.op == '?:')
             return f'{args[0]} ? {args[1]} : {args[2]}'
@@ -530,6 +534,10 @@ def get_accesses(node):
         return accesses
     elif isinstance(node, NoOp):
         return accesses
+    elif isinstance(node, StatementHole):
+        return accesses
+    elif isinstance(node, ExpressionHole):
+        return accesses
     elif isinstance(node, Access):
         accesses.add(node)
         for index in node.indices:
@@ -560,6 +568,8 @@ def get_accesses(node):
 def get_ordered_assignments(node):
     if isinstance(node, Assignment):
         return [node]
+    elif isinstance(node, Assignment):
+        return []
     elif isinstance(node, NoOp):
         return []
     elif isinstance(node, AbstractLoop):
@@ -588,6 +598,8 @@ def get_loops(node):
         return loops
     elif isinstance(node, Assignment):
         return set()
+    elif isinstance(node, StatementHole):
+        return set()
     elif isinstance(node, NoOp):
         return set()
     else:
@@ -605,6 +617,8 @@ def get_ordered_loops(node):
             loops += get_ordered_loops(stmt)
         return loops
     elif isinstance(node, Assignment):
+        return []
+    elif isinstance(node, StatementHole):
         return []
     elif isinstance(node, NoOp):
         return []
@@ -663,3 +677,45 @@ def gather_loop_vars(loop_shapes):
         assert(type(shape.loop_var) == Access)
         loop_vars.append(shape.loop_var.var)
     return loop_vars
+
+class Hole(Node):
+    def __init__(self, hole_name, family_name):
+        self.hole_name = hole_name
+        self.family_name = family_name
+    def is_hole(self):
+        return True
+
+class NameHole(Hole):
+    def pprint(self, indent=0):
+        return '_'
+    def replace(self, replacer):
+        pass
+    def clone(self):
+        return NameHole(self.hole_name, self.family_name)
+
+class StatementHole(Hole):
+    def pprint(self, indent=0):
+        ws = space_per_indent * indent * ' '
+        return f'{ws}$'
+    def replace(self, replacer):
+        pass
+    def clone(self):
+        return StatementHole(self.hole_name, self.family_name)
+
+class ExpressionHole(Hole):
+    def pprint(self, indent=0):
+        return f'#{self.hole_name}:{self.family_name}#'
+    def replace(self, replacer):
+        pass
+    def clone(self):
+        return ExpressionHole(self.hole_name, self.family_name)
+
+class OpHole(Hole, Op):
+    def pprint(self, indent=0):
+        return '@'
+    def replace(self, replacer):
+        pass
+    def clone(self):
+        return OpHole(self.hole_name, self.family_name)
+    def precedence(self):
+        return 150 # same precedence as multiplicatives

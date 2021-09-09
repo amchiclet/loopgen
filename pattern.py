@@ -21,9 +21,10 @@ grammar = '''
     loop_shape_part: LOOP_SHAPE_PREFIX? expr
     LOOP_SHAPE_PREFIX: "<=" | ">=" | "+="
 
-    statement: assignment | abstract_loop | no_op
-    assignment: access "=" expr ";"
+    statement: assignment | abstract_loop | no_op | statement_hole
+    assignment: expr "=" expr ";"
     no_op: ";"
+    statement_hole: "$" CNAME (":" CNAME)? "$"
 
     expr: conditional
     conditional: logical_or "?" logical_or ":" conditional | logical_or
@@ -36,9 +37,10 @@ grammar = '''
     relational: relational RELATION bitwise_shift | bitwise_shift
     bitwise_shift: bitwise_shift BITWISE_SHIFT additive | additive
     additive: additive ADDITIVE multiplicative | multiplicative
-    multiplicative: multiplicative MULTIPLICATIVE unary | unary
+    multiplicative: multiplicative op_hole unary | multiplicative MULTIPLICATIVE unary | unary
     unary: UNARY unary | atom
-    atom: access | "(" expr ")"
+    atom: access | "(" expr ")" | expr_hole
+    expr_hole: "#" CNAME (":" CNAME)? "#"
 
     access: scalar_access | array_access | literal
     scalar_access: scalar
@@ -48,8 +50,9 @@ grammar = '''
     int_literal: INT
     hex_literal: HEX_NUMBER
 
-    scalar: CNAME
+    scalar: CNAME | name_hole
     array: CNAME
+    name_hole: "`" CNAME (":" CNAME)? "`"
 
     EQUAL: "==" | "!="
     RELATION: "<=" | ">=" | "<" | ">"
@@ -57,10 +60,11 @@ grammar = '''
     ADDITIVE: "+" | "-"
     MULTIPLICATIVE: "*" | "/" | "%"
     UNARY: "+" | "-" | "!" | "~"
+    op_hole: "@" CNAME (":" CNAME)? "@"
 
     HEX_NUMBER: /0x[\\da-f]*/i
 
-    COMMENT: /#[^\\n]*/
+    COMMENT: /##[^\\n]*/
     %import common.WS
     %import common.LCASE_LETTER
     %import common.UCASE_LETTER
@@ -80,7 +84,7 @@ grammar = '''
 # DEC_NUMBER: /0|[1-9]\d*/i
 
 
-from pattern_ast import Assignment, Access, AbstractLoop, Program, get_accesses, Declaration, Const, Literal, Op, LoopShape, get_loops, get_accesses, LoopShapeBuilder, Hex, NoOp
+from pattern_ast import Assignment, Access, AbstractLoop, Program, get_accesses, Declaration, Const, Literal, Op, LoopShape, get_loops, get_accesses, LoopShapeBuilder, Hex, NoOp, StatementHole, ExpressionHole, NameHole, OpHole
 
 class TreeSimplifier(Transformer):
     def dimension(self, args):
@@ -256,6 +260,32 @@ class TreeSimplifier(Transformer):
         consts = [Const(name)
                   for name in sorted(list(consts_set))]
         return Program(decls, body, consts)
+
+    # holes
+    def expr_hole(self, args):
+        print('expression hole')
+        if len(args) == 1:
+            return ExpressionHole(args[0], '_')
+        elif len(args) == 2:
+            return ExpressionHole(args[0], args[1])
+    def op_hole(self, args):
+        if len(args) == 1:
+            return OpHole(args[0], '_')
+        elif len(args) == 2:
+            return OpHole(args[0], args[1])
+        assert(False)
+    def name_hole(self, args):
+        if len(args) == 1:
+            return NameHole(args[0], '_')
+        elif len(args) == 2:
+            return NameHole(args[0], args[1])
+        assert(False)
+    def statement_hole(self, args):
+        if len(args) == 1:
+            return StatementHole(args[0], '_')
+        elif len(args) == 2:
+            return StatementHole(args[0], args[1])
+        assert(False)
 
 def parse_str(code):
     parser = Lark(grammar)
