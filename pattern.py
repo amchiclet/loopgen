@@ -287,12 +287,21 @@ class TreeSimplifier(Transformer):
             return StatementHole(args[0], args[1])
         assert(False)
 
-def parse_str(code):
-    parser = Lark(grammar)
+def parse_str(code, start_rule="start"):
+    parser = Lark(grammar, start=start_rule)
     lark_ast = parser.parse(code)
     tree_simplifier = TreeSimplifier()
     abstract_ast = tree_simplifier.transform(lark_ast)
     return abstract_ast
+
+def parse_stmt_str(code):
+    return parse_str(code, "statement")
+
+def parse_seq_str(code):
+    return parse_str(code, "seq")
+
+def parse_expr_str(code):
+    return parse_str(code, "expr")
 
 def parse_file(path):
     with open(path) as f:

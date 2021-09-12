@@ -1,5 +1,5 @@
 import random
-from skeleton_ast import Replacer, Const, Declaration, Node, replace, ExpressionHole, StatementHole, OpHole, NameHole
+from pattern_ast import Replacer, Const, Declaration, Node, replace, ExpressionHole, StatementHole, OpHole, NameHole
 from math import prod
 
 class IncrementalChoice:
@@ -144,8 +144,8 @@ class Populator(Replacer):
         return type(node) in [Declaration, Const]
     def should_replace(self, node):
         raise NotImplementedError('Populator::should_replace')
-    def replace(self, name):
-        return self.populate_function(name)
+    def replace(self, node):
+        return self.populate_function(node)
 
 class StatementPopulator(Populator):
     def should_replace(self, node):

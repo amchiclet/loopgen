@@ -21,6 +21,8 @@ def is_list_syntactically_equal(list1, list2):
 class Replacer:
     def should_replace(self, node):
         raise NotImplementedError(type(self))
+    def should_skip(self, node):
+        raise NotImplementedError(type(self))
     def replace(self, node):
         raise NotImplementedError(type(self))
 
@@ -32,7 +34,6 @@ class Node:
         raise NotImplementedError(type(self))
     def precedence(self):
         raise NotImplementedError(type(self))
-        # return get_precedence()
     def replace(self, replacer):
         raise NotImplementedError(type(self))
 
@@ -172,12 +173,17 @@ class Assignment(Node):
                 index.parent_stmt = self
 
 def replace(i, replacer):
+    if replacer.should_skip(i):
+        return i
+
+    # replace this node otherwise recurse
     if replacer.should_replace(i):
         return replacer.replace(i)
-    else:
-        if isinstance(i, Node):
-            i.replace(replacer)
-        return i
+
+    if isinstance(i, Node):
+        i.replace(replacer)
+
+    return i
 
 def replace_each(l, replacer):
     return [replace(i, replacer) for i in l]
@@ -314,7 +320,7 @@ class LoopShape(Node):
         self.less_eq = replace(self.less_eq, replacer)
         self.step = replace(self.step, replacer)
 
-class LoopTrait:
+class LoopTrait():
     def find_stmt(self, stmt):
         return self.body.index(stmt)
     def remove_stmt(self, stmt):
@@ -324,7 +330,7 @@ class LoopTrait:
         for stmt in stmts:
             stmt.surrounding_loop = self
 
-class AbstractLoop(LoopTrait):
+class AbstractLoop(Node, LoopTrait):
     def __init__(self, loop_shapes, body, attributes=None):
         self.loop_shapes = loop_shapes
         for loop_shape in loop_shapes:
@@ -450,7 +456,7 @@ def plus_one(expr):
     else:
         raise RuntimeError(f'plus_one: unsupported type {type(expr)}')
 
-class Program(LoopTrait):
+class Program(Node, LoopTrait):
     def __init__(self, decls, body, consts, attributes=None):
         self.decls = decls
         self.body = body
@@ -696,7 +702,7 @@ class NameHole(Hole):
 class StatementHole(Hole):
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
-        return f'{ws}$'
+        return f'{ws}${self.hole_name}:{self.family_name}$'
     def replace(self, replacer):
         pass
     def clone(self):
