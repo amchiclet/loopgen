@@ -1,4 +1,3 @@
-#include <x86intrin.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>

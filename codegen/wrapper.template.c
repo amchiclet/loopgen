@@ -1,4 +1,3 @@
-#include <x86intrin.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,16 +45,17 @@ float calculate_checksum(${array_params}) {
 ${calculate_checksum_code}
 }
 
+unsigned long long core(${array_params});
+
 void checksum() {
   srand(0);
   init_scalars();
   allocate_arrays();
   init_array_ptrs();
+  unsigned long long runtime = core(${array_args});
   float cs = calculate_checksum(${array_args});
-  printf("Checksum is %f\n", cs);    
+  printf("Runtime for 1 iteration is %llu and checksum is %f\n", runtime, cs);
 }
-
-unsigned long long core(${array_params});
 
 void measure(int n_iterations) {
   srand(0);
