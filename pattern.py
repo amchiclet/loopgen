@@ -263,7 +263,6 @@ class TreeSimplifier(Transformer):
 
     # holes
     def expr_hole(self, args):
-        print('expression hole')
         if len(args) == 1:
             return ExpressionHole(args[0], '_')
         elif len(args) == 2:
