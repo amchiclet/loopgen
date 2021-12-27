@@ -105,7 +105,9 @@ class PopulateParameters:
         if name != '_' and full_name in self.assigned:
             return self.assigned[full_name]
 
-        assert(family in self.available)
+        if family not in self.available:
+            return node
+
         assert(len(self.available[family]) > 0)
 
         choice_function = self.choice_functions[family]
