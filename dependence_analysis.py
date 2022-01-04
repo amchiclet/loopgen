@@ -47,9 +47,11 @@ def assign_node_ids(program):
 
 def analyze_dependence(program):
     program_w_attributes = assign_node_ids(program)
+    scalar_cvars = generate_scalar_constraint_vars(program.decls)
+
     graph = DependenceGraph()
     for (ref1, ref2) in iterate_unique_reference_pairs(program_w_attributes):
-        for dependence_dv in iterate_dependence_direction_vectors(ref1, ref2):
+        for dependence_dv in iterate_dependence_direction_vectors(ref1, ref2, scalar_cvars):
             for ref1_then_ref2_dv in iterate_execution_order_direction_vector(ref1, ref2):
                 logger.debug(f'Testing:\n'
                              f'{ref1.pprint()} -> {ref2.pprint()}:, '
@@ -144,7 +146,10 @@ def get_common_prefix(l1, l2):
         common.append(v1)
     return common
 
-def iterate_dependence_direction_vectors(source_ref, sink_ref):
+def iterate_dependence_direction_vectors(source_ref, sink_ref, extra_cvars=None, extra_constraints=None):
+    extra_cvars = {} if extra_cvars is None else extra_cvars
+    extra_constraints = [] if extra_constraints is None else extra_constraints
+
     source_loops = gather_surrounding_loops(source_ref.parent_stmt)
     source_loop_shapes = gather_loop_shapes(source_loops)
     source_loop_vars = gather_loop_vars(source_loop_shapes)
@@ -156,25 +161,26 @@ def iterate_dependence_direction_vectors(source_ref, sink_ref):
         = generate_constraint_vars(source_loop_vars,
                                    sink_loop_vars)
 
-    constraints = []
+    constraints = extra_constraints
 
+    merged_source_cvars = {**source_cvars, **extra_cvars}
     constraints += generate_loop_bound_constraints(source_loop_shapes,
-                                                   source_cvars)
+                                                   merged_source_cvars)
 
     constraints += generate_step_constraints(source_loop_shapes,
-                                             source_cvars,
+                                             merged_source_cvars,
                                              source_step_cvars)
 
+    merged_sink_cvars = {**sink_cvars, **extra_cvars}
     constraints += generate_loop_bound_constraints(sink_loop_shapes,
-                                                   sink_cvars)
+                                                   merged_sink_cvars)
 
-    # sink_steps = gather_loop_steps(sink_loop_shapes)
     constraints += generate_step_constraints(sink_loop_shapes,
-                                             sink_cvars,
+                                             merged_sink_cvars,
                                              sink_step_cvars)
 
-    constraints += generate_subscript_equality_constraints(source_ref, source_cvars,
-                                                           sink_ref, sink_cvars)
+    constraints += generate_subscript_equality_constraints(source_ref, merged_source_cvars,
+                                                           sink_ref, merged_sink_cvars)
 
     def iterate_recursive(constraints, remaining_loop_vars, accumulated_dv):
         n_dimensions_left = len(remaining_loop_vars)
@@ -187,8 +193,8 @@ def iterate_dependence_direction_vectors(source_ref, sink_ref):
             # relation between source and sink vars, it means the rest of
             # the dimensions are *s.
             if solve(constraints):
-                source_cvar = source_cvars[remaining_loop_vars[0]]
-                sink_cvar = sink_cvars[remaining_loop_vars[0]]
+                source_cvar = merged_source_cvars[remaining_loop_vars[0]]
+                sink_cvar = merged_sink_cvars[remaining_loop_vars[0]]
                 yield from iterate_recursive(constraints + [source_cvar < sink_cvar],
                                              remaining_loop_vars[1:],
                                              accumulated_dv + ['<'])
@@ -221,8 +227,13 @@ def generate_loop_bound_constraints(loop_shapes, cvars):
     for shape in loop_shapes:
         assert(type(shape.loop_var) == Access)
         v = shape.loop_var.var
+        print('shape')
+        print(shape.greater_eq)
+        print(shape.less_eq)
         begin = expr_to_cexpr(shape.greater_eq, cvars)
         end = expr_to_cexpr(shape.less_eq, cvars)
+        print(begin)
+        print(end)
         cvar = cvars[v]
         constraints += [begin <= cvar, cvar <= end]
     return constraints
@@ -275,6 +286,9 @@ def expr_to_cexpr(expr, cvars):
         if expr.is_scalar() and expr.var in cvars:
             return cvars[expr.var]
     return None
+
+def generate_scalar_constraint_vars(decls):
+    return {decl.name:Int(decl.name) for decl in decls}
 
 def generate_subscript_equality_constraints(source_ref, source_cvars, sink_ref, sink_cvars):
     constraints = []
