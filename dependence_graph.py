@@ -65,3 +65,6 @@ class DependenceGraph:
             for dep in dep_list:
                 lines.append(dep.pprint())
         return '\n'.join(lines)
+
+    def __str__(self):
+        return self.pprint()

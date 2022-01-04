@@ -2,14 +2,6 @@ from loguru import logger
 
 space_per_indent = 2
 
-# def get_precedence(op=None):
-#     if op in ['+', '-']:
-#         return 3
-#     elif op in ['*', '/']:
-#         return 4
-#     else:
-#         return 5
-
 def is_list_syntactically_equal(list1, list2):
     if len(list1) != len(list2):
         return False
@@ -36,6 +28,10 @@ class Node:
         raise NotImplementedError(type(self))
     def replace(self, replacer):
         raise NotImplementedError(type(self))
+    def pprint(self):
+        raise NotImplementedError(type(self))
+    def __str__(self):
+        return self.pprint()
 
 class Const(Node):
     def __init__(self, name, attributes=None):
