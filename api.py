@@ -42,7 +42,17 @@ class Skeleton:
         return self.fill(mappings, parse_stmt_str, populate_stmt)
 
     def generate_code(self, config):
-        var_map = VariableMap()
+        if '_' in config.possible_values:
+            default_range = config.possible_values['_']
+            if len(default_range) == 1:
+                min_val = 0
+                max_val = default_range
+            else:
+                min_val = default_range[0]
+                max_val = default_range[1]
+            var_map = VariableMap(default_min = min_val, default_max = max_val)
+        else:
+            var_map = VariableMap()
 
         for var, value in config.possible_values.items():
             if isinstance(value, int):
