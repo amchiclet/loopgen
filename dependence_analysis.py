@@ -51,7 +51,7 @@ def analyze_dependence(program):
 
     graph = DependenceGraph()
     for (ref1, ref2) in iterate_unique_reference_pairs(program_w_attributes):
-        for dependence_dv in iterate_dependence_direction_vectors(ref1, ref2, scalar_cvars):
+        for dependence_dv, model in iterate_dependence_direction_vectors(ref1, ref2, scalar_cvars):
             for ref1_then_ref2_dv in iterate_execution_order_direction_vector(ref1, ref2):
                 logger.debug(f'Testing:\n'
                              f'{ref1.pprint()} -> {ref2.pprint()}:, '
@@ -59,18 +59,18 @@ def analyze_dependence(program):
                 dv1 = calculate_valid_direction_vector(dependence_dv,
                                                        ref1_then_ref2_dv)
                 if dv1 is not None:
-                    logger.debug(f'Valid direction vector: {dv1}')
+                    logger.debug(f'Valid direction vector: {dv1}\nExample:\n{model}')
                     graph.add(ref1, ref2, dv1)
 
             dependence_dv_inv = negate_direction_vector(dependence_dv)
             for ref2_then_ref1_dv in iterate_execution_order_direction_vector(ref2, ref1):
                 logger.debug(f'Testing:\n'
-                             f'{ref2.pprint()} -> {ref2.pprint()}:, '
+                             f'{ref2.pprint()} -> {ref1.pprint()}:, '
                              f'dep({dependence_dv_inv}) exe_order({ref2_then_ref1_dv})')
                 dv2 = calculate_valid_direction_vector(dependence_dv_inv,
                                                        ref2_then_ref1_dv)
                 if dv2 is not None:
-                    logger.debug(f'Valid direction vector: {dv2}')
+                    logger.debug(f'Valid direction vector: {dv2}\nExample (source sink negated):\n{model}')
                     graph.add(ref2, ref1, dv2)
     return graph, program_w_attributes
 
@@ -186,8 +186,9 @@ def iterate_dependence_direction_vectors(source_ref, sink_ref, extra_cvars=None,
         n_dimensions_left = len(remaining_loop_vars)
 
         if n_dimensions_left == 0:
-            if solve(constraints):
-                yield accumulated_dv
+            model = solve(constraints)
+            if model is not None:
+                yield accumulated_dv, model
         else:
             # If we don't add additional constraints on the direction
             # relation between source and sink vars, it means the rest of
@@ -215,11 +216,11 @@ def generate_constraint_vars(source_loop_vars, sink_loop_vars):
     source_step_cvars = {}
     sink_step_cvars = {}
     for v in source_loop_vars:
-        source_cvars[v] = Int(f'{v}_source')
-        source_step_cvars[v] = Int(f'{v}_step_source')
+        source_cvars[v] = Int(f'{v}_value_source')
+        source_step_cvars[v] = Int(f'{v}_which_iteration_source')
     for v in sink_loop_vars:
-        sink_cvars[v] = Int(f'{v}_sink')
-        sink_step_cvars[v] = Int(f'{v}_step_sink')
+        sink_cvars[v] = Int(f'{v}_value_sink')
+        sink_step_cvars[v] = Int(f'{v}_which_iteration_sink')
     return (source_cvars, sink_cvars, source_step_cvars, sink_step_cvars)
 
 def generate_loop_bound_constraints(loop_shapes, cvars):
@@ -227,13 +228,8 @@ def generate_loop_bound_constraints(loop_shapes, cvars):
     for shape in loop_shapes:
         assert(type(shape.loop_var) == Access)
         v = shape.loop_var.var
-        print('shape')
-        print(shape.greater_eq)
-        print(shape.less_eq)
         begin = expr_to_cexpr(shape.greater_eq, cvars)
         end = expr_to_cexpr(shape.less_eq, cvars)
-        print(begin)
-        print(end)
         cvar = cvars[v]
         constraints += [begin <= cvar, cvar <= end]
     return constraints
@@ -314,7 +310,9 @@ def solve(constraints):
     solver = Solver()
     solver.add(constraints)
     status = solver.check()
-    return status == sat
+    if status == sat:
+        return solver.model()
+    return None
 
 def calculate_valid_direction_vector(dependence_dv, execution_order_dv):
     if execution_order_dv is None:
