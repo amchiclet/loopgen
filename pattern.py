@@ -4,6 +4,12 @@ from lark import Lark, Transformer
 # Operator precedence is based on
 # https://docs.microsoft.com/en-us/cpp/c-language/precedence-and-order-of-evaluation?view=vs-2019
 
+# TODO: Add blocks so statements aren't arrays of statements any more
+#       but actual block data structures
+#       This will be convenient when generating, for example, programs
+#       with 1 to 5 statements. We can then have one statement hole to
+#       be filled with blocks of different sizes
+
 grammar = '''
     start: (declaration)+ statement+
 
