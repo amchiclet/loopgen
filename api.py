@@ -41,6 +41,7 @@ class Skeleton:
     def fill_statements(self, mappings):
         return self.fill(mappings, parse_stmt_str, populate_stmt)
 
+    # Single threaded
     def generate_code(self, config):
         if '_' in config.possible_values:
             default_range = config.possible_values['_']
@@ -69,10 +70,17 @@ class Skeleton:
 
         instance = try_create_instance(self.program, var_map, type_assignment)
         Path(config.output_dir).mkdir(parents=True, exist_ok=True)
+
+        import pattern_ast
+        old_array_as_ptr = pattern_ast.array_as_ptr
+        pattern_ast.array_as_ptr = config.array_as_ptr
+
         generate_code(config.output_dir,
                       instance,
                       init_value_map=config.initial_values,
                       template_dir=config.template_dir)
+
+        pattern_ast.array_as_ptr = old_array_as_ptr
 
 class CodegenConfig:
     def __init__(self):
@@ -81,3 +89,4 @@ class CodegenConfig:
         self.initial_values = None
         self.output_dir = None
         self.template_dir = None
+        self.array_as_ptr = False

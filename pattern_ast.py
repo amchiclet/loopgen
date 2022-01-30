@@ -2,6 +2,9 @@ from loguru import logger
 
 space_per_indent = 2
 
+# TODO: make this non-global
+array_as_ptr = False
+
 def is_list_syntactically_equal(list1, list2):
     if len(list1) != len(list2):
         return False
@@ -194,8 +197,12 @@ class Access(Node):
     def is_scalar(self):
         return len(self.indices) == 0
     def pprint(self, indent=0):
+        if self.is_scalar() or not array_as_ptr:
+            name = self.var
+        else:
+            name = f'(*{self.var})'
         list_of_pprint = [f'[{index.pprint()}]' for index in self.indices]
-        return f'{self.var}{"".join(list_of_pprint)}'
+        return f'{name}{"".join(list_of_pprint)}'
     def dep_print(self, refs):
         from termcolor import colored
         if self in refs:

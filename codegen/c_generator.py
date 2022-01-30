@@ -71,14 +71,17 @@ class CGenerator:
         return spaces(self.indent)
 
     def decl(self, decl, is_ptr=False, is_restrict=False):
-        assert(not(is_ptr and is_restrict))
         brackets = ''.join([f'[{size.pprint()}]' for size in decl.sizes])
         name = decl.name
         if is_ptr:
-            name = f'(*{name})'
-        declaration = f'{decl.ty} {name}{brackets}'
-        if is_restrict:
-            declaration = declaration.replace('[', '[restrict ', 1)
+            if is_restrict:
+                declaration = f'{decl.ty} (*restrict {name}){brackets}'
+            else:
+                declaration = f'{decl.ty} (*{name}){brackets}'
+        else:
+            declaration = f'{decl.ty} {name}{brackets}'
+            if is_restrict:
+                declaration = declaration.replace('[', '[restrict ', 1)
         return declaration
 
     def define_scalars(self):
@@ -171,7 +174,7 @@ class CGenerator:
             max_indices.append(max_index)
         return max_indices
 
-    def initialize_value(self, decl):
+    def initialize_value(self, decl, is_ptr=False):
         lines = []
         def generate_body(loop_vars):
             if decl.ty == 'float':
@@ -187,17 +190,21 @@ class CGenerator:
             if decl.name in self.init_value_map:
                 val = self.init_value_map[decl.name]
 
-            return f'{self.no_indent()}{access(decl.name, loop_vars)} = {val};'
+            if is_ptr:
+                name = f'(*{decl.name})'
+            else:
+                name = decl.name
+            return f'{self.no_indent()}{access(name, loop_vars)} = {val};'
         begins = self.access_bounds[decl.name].min_indices
         ends = self.determine_max_indices(decl)
         lines.append(self.nested_loops(begins, ends, generate_body))
         return '\n'.join(lines)
 
-    def initialize_arrays_code(self):
+    def initialize_arrays_code(self, is_ptr=False):
         lines = []
         self.indent_in()
         for decl in self.iterate_decls(is_nonlocal_array):
-            lines.append(self.initialize_value(decl))
+            lines.append(self.initialize_value(decl, is_ptr))
         self.indent_out()
         return '\n'.join(lines)
 
@@ -209,24 +216,29 @@ class CGenerator:
         self.indent_out()
         return '\n'.join(lines)
 
-    def accumulate_checksum(self, decl):
+    def accumulate_checksum(self, decl, is_ptr=False):
         lines = []
         def generate_body(loop_vars):
-            name = decl.name if not is_array(decl) else f'(*{ptr(decl).name})'
-            name = decl.name
+            if is_array(decl):
+                if is_ptr:
+                    name = f'(*{decl.name})'
+                else:
+                    name = decl.name
+            else:
+                name = decl.name
             return f'{self.no_indent()}total += {access(name, loop_vars)};'
         lines.append(self.nested_loops(self.access_bounds[decl.name].min_indices,
                                        self.determine_max_indices(decl),
                                        generate_body))
         return '\n'.join(lines)
 
-    def calculate_checksum_code(self):
+    def calculate_checksum_code(self, is_ptr=False):
         lines = []
         ws = self.indent_in()
         lines.append(f'{ws}float total = 0.0;')
 
         for decl in self.iterate_decls(is_nonlocal):
-            lines.append(self.accumulate_checksum(decl))
+            lines.append(self.accumulate_checksum(decl, is_ptr))
 
         lines.append(f'{ws}return total;')
         self.indent_out()
@@ -253,9 +265,9 @@ class CGenerator:
                 lines.append(self.initialize_value(decl))
         return '\n'.join(lines)
 
-    def array_params(self):
+    def array_params(self, is_ptr=False):
         return ', '.join([
-            self.decl(decl, is_restrict=True)
+            self.decl(decl, is_ptr=is_ptr, is_restrict=True)
             for decl in self.iterate_decls(is_nonlocal_array)
         ])
 
@@ -263,11 +275,17 @@ class CGenerator:
         ptr_decl = ptr(decl)
         return f'({ptr_decl.ty})({ptr_decl.name})'
 
-    def array_args(self):
-        return ', '.join([
-            f'*{self.cast_array_ptr(decl)}'
-            for decl in self.iterate_decls(is_nonlocal_array)
-        ])
+    def array_args(self, is_ptr=False):
+        if is_ptr:
+            return ', '.join([
+                f'{self.cast_array_ptr(decl)}'
+                for decl in self.iterate_decls(is_nonlocal_array)
+            ])
+        else:
+            return ', '.join([
+                f'*{self.cast_array_ptr(decl)}'
+                for decl in self.iterate_decls(is_nonlocal_array)
+            ])
 
     def ast(self, node):
         ty = type(node)
@@ -337,15 +355,19 @@ def generate_code(output_dir, instance, init_value_map=None, template_dir=None):
         'define_arrays_as_pointers': cgen.define_arrays_as_pointers(),
         'locals': cgen.define_locals(),
         'init_scalars_code': cgen.initialize_scalars_code(),
-        'init_arrays_code': cgen.initialize_arrays_code(),
+        'init_arrays_code': cgen.initialize_arrays_code(is_ptr=False),
+        'init_arrays_code_as_ptr': cgen.initialize_arrays_code(is_ptr=True),
         'allocate_arrays_code': cgen.allocate_arrays_code(),
-        'calculate_checksum_code': cgen.calculate_checksum_code(),
+        'calculate_checksum_code': cgen.calculate_checksum_code(is_ptr=False),
+        'calculate_checksum_code_as_ptr': cgen.calculate_checksum_code(is_ptr=True),
         'core_code': cgen.core_code(),
 
         'scalar_externs': cgen.scalar_externs(),
         'array_externs': cgen.array_externs(),
-        'array_params': cgen.array_params(),
-        'array_args': cgen.array_args(),
+        'array_params': cgen.array_params(is_ptr=False),
+        'array_args': cgen.array_args(is_ptr=False),
+        'array_params_as_ptr': cgen.array_params(is_ptr=True),
+        'array_args_as_ptr': cgen.array_args(is_ptr=True),
     }
 
     # wrapper
