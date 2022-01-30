@@ -335,6 +335,13 @@ class LoopTrait():
         self.body[i:i] = stmts
         for stmt in stmts:
             stmt.surrounding_loop = self
+    def append_stmt(self, stmt):
+        self.body.append(stmt)
+        stmt.surrounding_loop = self
+    def replace_body(self, stmts):
+        self.body = []
+        for stmt in stmts:
+            self.append_stmt(stmt)
 
 class AbstractLoop(Node, LoopTrait):
     def __init__(self, loop_shapes, body, attributes=None):
