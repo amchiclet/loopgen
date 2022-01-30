@@ -5,10 +5,11 @@ from pattern_ast import (Declaration, Literal, Hex, Assignment,
                          Access, LoopShape, AbstractLoop, Op, Program, NoOp)
 from constant_assignment import VariableMap
 
-def loop_header(loop_var, loop_var_ty, begin, end):
+def loop_header(loop_var, loop_var_ty, begin, ends):
     decl = f'{loop_var_ty} {loop_var}' if loop_var_ty else loop_var
+    end_clauses = ' && '.join([f'{loop_var} <= {end}' for end in ends])
     return (f'for ({decl} = {begin}; '
-            f'{loop_var} <= {end}; '
+            f'{end_clauses}; '
             f'++{loop_var}) {{')
 
 def spaces(indent):
@@ -132,13 +133,13 @@ class CGenerator:
 
         # open loop header
         ws = self.no_indent()
-        for loop_var, begin, end in zip(loop_vars, min_indices, max_indices):
+        for loop_var, begin, ends in zip(loop_vars, min_indices, max_indices):
             loop_var_ty = 'int'
             for decl in self.iterate_decls():
                 if loop_var == decl.name:
                     loop_var_ty = ''
                     break
-            lines.append(f'{ws}{loop_header(loop_var, loop_var_ty, begin, end)}')
+            lines.append(f'{ws}{loop_header(loop_var, loop_var_ty, begin, ends)}')
             ws = self.indent_in()
 
         # body
@@ -196,7 +197,7 @@ class CGenerator:
                 name = decl.name
             return f'{self.no_indent()}{access(name, loop_vars)} = {val};'
         begins = self.access_bounds[decl.name].min_indices
-        ends = self.determine_max_indices(decl)
+        ends = [[max_index] for max_index in self.determine_max_indices(decl)]
         lines.append(self.nested_loops(begins, ends, generate_body))
         return '\n'.join(lines)
 
@@ -227,8 +228,9 @@ class CGenerator:
             else:
                 name = decl.name
             return f'{self.no_indent()}total += {access(name, loop_vars)};'
+        max_indices = [[max_index] for max_index in self.determine_max_indices(decl)]
         lines.append(self.nested_loops(self.access_bounds[decl.name].min_indices,
-                                       self.determine_max_indices(decl),
+                                       max_indices,
                                        generate_body))
         return '\n'.join(lines)
 
@@ -304,7 +306,7 @@ class CGenerator:
             for shape in node.loop_shapes:
                 loop_vars.append(self.ast(shape.loop_var))
                 min_indices.append(self.ast(shape.greater_eq))
-                max_indices.append(self.ast(shape.less_eq))
+                max_indices.append([self.ast(expr) for expr in shape.less_eq])
                 assert(type(shape.step) == Literal and
                        shape.step.ty == int and
                        shape.step.val == 1)

@@ -203,7 +203,7 @@ class TreeSimplifier(Transformer):
         default_step = Literal(int, 1)
         return LoopShape(args[0],
                          default_greater_eq,
-                         default_less_eq,
+                         [default_less_eq],
                          default_step)
     def multi_loop_shape(self, args):
         return args[0]

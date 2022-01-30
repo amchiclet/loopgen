@@ -24,7 +24,8 @@ def assign_node_ids(program):
             for loop_shape in node.loop_shapes:
                 assign(loop_shape.loop_var)
                 assign(loop_shape.greater_eq)
-                assign(loop_shape.less_eq)
+                for expr in loop_shape.less_eq:
+                    assign(expr)
                 assign(loop_shape.step)
             for stmt in node.body:
                 assign(stmt)
@@ -228,10 +229,12 @@ def generate_loop_bound_constraints(loop_shapes, cvars):
     for shape in loop_shapes:
         assert(type(shape.loop_var) == Access)
         v = shape.loop_var.var
-        begin = expr_to_cexpr(shape.greater_eq, cvars)
-        end = expr_to_cexpr(shape.less_eq, cvars)
         cvar = cvars[v]
-        constraints += [begin <= cvar, cvar <= end]
+        begin = expr_to_cexpr(shape.greater_eq, cvars)
+        constraints.append(begin <= cvar)
+        for expr in shape.less_eq:
+            end = expr_to_cexpr(expr, cvars)
+            constraints.append(cvar <= end)
     return constraints
 
 def generate_step_constraints(loop_shapes, cvars, step_cvars):
@@ -437,10 +440,16 @@ def get_min_distance(dep):
 
     widths = []
     for shape in common_loop_shapes:
-        if (type(shape.less_eq) != Literal or
-            type(shape.greater_eq) != Literal):
+        if type(shape.greater_eq) != Literal:
             return False
-        width = shape.less_eq.val - shape.greater_eq.val + 1
+        min_less_eq = None
+        for expr in shape.less_eq:
+            if type(expr) != Literal:
+                return False
+            if min_less_eq is None:
+                min_less_eq = expr.val
+            min_less_eq = min(min_less_eq, expr.val)
+        width = min_less_eq - shape.greater_eq.val + 1
         widths.append(width)
 
     strides = [1]

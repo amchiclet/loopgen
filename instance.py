@@ -36,9 +36,10 @@ def generate_loop_shape_constraints(loop_shapes, cvars):
         if i_greater_eq is not None:
             constraints.append(i_greater_eq <= i)
 
-        i_less_eq = expr_to_cexpr(shape.less_eq, cvars)
-        if i_less_eq is not None:
-            constraints.append(i <= i_less_eq)
+        for expr in shape.less_eq:
+            i_less_eq = expr_to_cexpr(expr, cvars)
+            if i_less_eq is not None:
+                constraints.append(i <= i_less_eq)
     return constraints
 
 # Whatever assertion the user specifies in the var map must
