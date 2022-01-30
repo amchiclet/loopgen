@@ -5,12 +5,12 @@ from pattern_ast import (Declaration, Literal, Hex, Assignment,
                          Access, LoopShape, AbstractLoop, Op, Program, NoOp)
 from constant_assignment import VariableMap
 
-def loop_header(loop_var, loop_var_ty, begin, ends):
+def loop_header(loop_var, loop_var_ty, begin, ends, step):
     decl = f'{loop_var_ty} {loop_var}' if loop_var_ty else loop_var
     end_clauses = ' && '.join([f'{loop_var} <= {end}' for end in ends])
     return (f'for ({decl} = {begin}; '
             f'{end_clauses}; '
-            f'++{loop_var}) {{')
+            f'{loop_var} += {step}) {{')
 
 def spaces(indent):
     return '  ' * indent
@@ -124,7 +124,7 @@ class CGenerator:
             for decl in self.iterate_decls(is_nonlocal_array)
         ])
 
-    def nested_loops_full(self, loop_vars, min_indices, max_indices, generate_body):
+    def nested_loops_full(self, loop_vars, min_indices, max_indices, steps, generate_body):
         lines = []
 
         n_dimensions = len(loop_vars)
@@ -133,13 +133,13 @@ class CGenerator:
 
         # open loop header
         ws = self.no_indent()
-        for loop_var, begin, ends in zip(loop_vars, min_indices, max_indices):
+        for loop_var, begin, ends, step in zip(loop_vars, min_indices, max_indices, steps):
             loop_var_ty = 'int'
             for decl in self.iterate_decls():
                 if loop_var == decl.name:
                     loop_var_ty = ''
                     break
-            lines.append(f'{ws}{loop_header(loop_var, loop_var_ty, begin, ends)}')
+            lines.append(f'{ws}{loop_header(loop_var, loop_var_ty, begin, ends, step)}')
             ws = self.indent_in()
 
         # body
@@ -150,12 +150,14 @@ class CGenerator:
             lines.append(f'{self.indent_out()}}}')
 
         return '\n'.join(lines)
-        
+
     def nested_loops(self, min_indices, max_indices, generate_body):
         loop_vars = [f'i{depth}' for depth in range(len(min_indices))]
+        steps = [Literal(int, 1) for _ in range(len(min_indices))]
         return self.nested_loops_full(loop_vars,
                                       min_indices,
                                       max_indices,
+                                      steps,
                                       generate_body)
 
     def canonicalize_name(self, decl):
@@ -303,13 +305,15 @@ class CGenerator:
             loop_vars = []
             min_indices = []
             max_indices = []
+            steps = []
             for shape in node.loop_shapes:
                 loop_vars.append(self.ast(shape.loop_var))
                 min_indices.append(self.ast(shape.greater_eq))
                 max_indices.append([self.ast(expr) for expr in shape.less_eq])
+
                 assert(type(shape.step) == Literal and
-                       shape.step.ty == int and
-                       shape.step.val == 1)
+                       shape.step.ty == int)
+                steps.append(self.ast(shape.step))
             def generate_body(loop_vars):
                 return '\n'.join([
                     self.ast(stmt) for stmt in node.body
@@ -317,6 +321,7 @@ class CGenerator:
             return self.nested_loops_full(loop_vars,
                                           min_indices,
                                           max_indices,
+                                          steps,
                                           generate_body)
         elif ty == Assignment:
             return f'{self.no_indent()}{node.pprint()}'
