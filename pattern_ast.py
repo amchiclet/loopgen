@@ -322,7 +322,6 @@ class LoopShape(Node):
     def replace(self, replacer):
         self.loop_var = replace(self.loop_var, replacer)
         self.greater_eq = replace(self.greater_eq, replacer)
-        print('replacing less eq')
         self.less_eq = replace_each(self.less_eq, replacer)
         self.step = replace(self.step, replacer)
 
@@ -535,6 +534,28 @@ class Program(Node, LoopTrait):
         self.body = replace_each(self.body, replacer)
         for stmt in self.body:
             stmt.surrounding_loop = self
+    def populate_decls(self):
+        accesses = get_accesses(self)
+        loop_vars = gather_loop_vars(gather_loop_shapes(get_loops(self)))
+        undeclared = []
+        for access in accesses:
+            name = access.var
+            if name in loop_vars:
+                continue
+            if self.get_decl(name):
+                continue
+            undeclared.append(access)
+        unique_names = set()
+        unique_undeclared = []
+        for access in undeclared:
+            if access.var in unique_names:
+                continue
+            unique_names.add(access.var)
+            unique_undeclared.append(access)
+        unique_undeclared.sort(key = lambda access: access.var)
+        # sorted_unique_undeclared = sorted(unique_undeclared, lambda access: access.var)
+        for access in unique_undeclared:
+            self.decls.append(Declaration(access.var, len(access.indices)))
 
 def get_accesses(node):
     accesses = set()

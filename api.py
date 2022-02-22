@@ -68,6 +68,9 @@ class Skeleton:
         for var, ty in config.types.items():
             type_assignment.set(var, ty)
 
+        # Infer non-explicit decls
+        self.program.populate_decls()
+
         instance = try_create_instance(self.program, var_map, type_assignment)
         Path(config.output_dir).mkdir(parents=True, exist_ok=True)
 
