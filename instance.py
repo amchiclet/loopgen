@@ -127,22 +127,22 @@ def try_create_instance(pattern, var_map, types):
     l.debug('Loop shape constraints:\n' + '\n'.join(map(str, loop_shape_constraints)))
     l.debug('Bound constraints:\n' + '\n'.join(map(str, bound_constraints)))
 
-    assert(len(index_constraints) > 0)
-    invert_index_constraints = Not(And(index_constraints))
+    if len(index_constraints) > 0:
+        invert_index_constraints = Not(And(index_constraints))
 
-    constraints = [invert_index_constraints] + loop_shape_constraints + bound_constraints
+        constraints = [invert_index_constraints] + loop_shape_constraints + bound_constraints
 
-    solver = Solver()
-    solver.set('timeout', 10000)
-    solver.add(constraints)
-    status = solver.check()
-    if status != unsat:
-        l.debug(f'Constraints are not unsatisfiable ({status}). '
-                'May result in index out of bound')
-        l.debug('Constraints:\n' + '\n'.join(map(str, constraints)))
-        if status == sat:
-            l.debug(f'Model:\n{solver.model()}')
-        return None
+        solver = Solver()
+        solver.set('timeout', 10000)
+        solver.add(constraints)
+        status = solver.check()
+        if status != unsat:
+            l.debug(f'Constraints are not unsatisfiable ({status}). '
+                    'May result in index out of bound')
+            l.debug('Constraints:\n' + '\n'.join(map(str, constraints)))
+            if status == sat:
+                l.debug(f'Model:\n{solver.model()}')
+            return None
 
     constraints = index_constraints + loop_shape_constraints + bound_constraints
     solver = Solver()
