@@ -1,4 +1,5 @@
 from pattern import parse_str, parse_stmt_str, parse_expr_str, Program
+from pattern_ast import get_accesses
 from populator import PopulateParameters, populate_stmt, populate_expr
 from constant_assignment import VariableMap
 from random import choice
@@ -6,6 +7,7 @@ from instance import try_create_instance
 from type_assignment import TypeAssignment
 from codegen.c_generator import generate_code
 from pathlib import Path
+from dependence_analysis import analyze_dependence, calculate_distance_vectors
 
 class Mapping:
     def __init__(self, family_name, choices, is_finite=False, choice_function=choice):

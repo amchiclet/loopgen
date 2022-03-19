@@ -484,7 +484,7 @@ class Program(Node, LoopTrait):
         return None
     def pprint(self, indent=0):
         body = []
-        body += [f'{decl.pprint(indent)}' for decl in self.decls]
+        # body += [f'{decl.pprint(indent)}' for decl in self.decls]
         # body += [f'{const.pprint(indent)}' for const in self.consts]
         body += [f'{stmt.pprint(indent)}' for stmt in self.body]
         return '\n'.join(body)
@@ -557,11 +557,11 @@ class Program(Node, LoopTrait):
         for access in unique_undeclared:
             self.decls.append(Declaration(access.var, len(access.indices)))
 
-def get_accesses(node):
+def get_accesses(node, ignore_indices=False):
     accesses = set()
     if isinstance(node, Assignment):
-        accesses.update(get_accesses(node.lhs))
-        accesses.update(get_accesses(node.rhs))
+        accesses.update(get_accesses(node.lhs, ignore_indices))
+        accesses.update(get_accesses(node.rhs, ignore_indices))
         return accesses
     elif isinstance(node, NoOp):
         return accesses
@@ -571,29 +571,32 @@ def get_accesses(node):
         return accesses
     elif isinstance(node, Access):
         accesses.add(node)
+        if ignore_indices:
+            return accesses
+
         for index in node.indices:
-            accesses.update(get_accesses(index))
+            accesses.update(get_accesses(index, ignore_indices))
         return accesses
     elif isinstance(node, Op):
         for arg in node.args:
-            accesses.update(get_accesses(arg))
+            accesses.update(get_accesses(arg, ignore_indices))
         return accesses
     elif isinstance(node, LoopShape):
-        accesses.update(get_accesses(node.loop_var))
-        accesses.update(get_accesses(node.greater_eq))
+        accesses.update(get_accesses(node.loop_var, ignore_indices))
+        accesses.update(get_accesses(node.greater_eq, ignore_indices))
         for expr in node.less_eq:
-            accesses.update(get_accesses(expr))
-        accesses.update(get_accesses(node.step))
+            accesses.update(get_accesses(expr, ignore_indices))
+        accesses.update(get_accesses(node.step, ignore_indices))
         return accesses
     elif isinstance(node, AbstractLoop):
         for shape in node.loop_shapes:
-            accesses.update(get_accesses(shape))
+            accesses.update(get_accesses(shape, ignore_indices))
         for stmt in node.body:
-            accesses.update(get_accesses(stmt))
+            accesses.update(get_accesses(stmt, ignore_indices))
         return accesses
     elif isinstance(node, Program):
         for stmt in node.body:
-            accesses.update(get_accesses(stmt))
+            accesses.update(get_accesses(stmt, ignore_indices))
         return accesses
     elif isinstance(node, Literal):
         return accesses
