@@ -71,7 +71,10 @@ class Skeleton:
             type_assignment.set(var, ty)
 
         # Infer non-explicit decls
-        self.program.populate_decls()
+        possible_values = None
+        if config.array_size_depends_on_possible_values:
+            possible_values = config.possible_values
+        self.program.populate_decls(possible_values)
 
         instance = try_create_instance(self.program, var_map, type_assignment)
         Path(config.output_dir).mkdir(parents=True, exist_ok=True)
@@ -95,3 +98,4 @@ class CodegenConfig:
         self.output_dir = None
         self.template_dir = None
         self.array_as_ptr = False
+        self.array_size_depends_on_possible_values = False

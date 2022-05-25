@@ -534,7 +534,8 @@ class Program(Node, LoopTrait):
         self.body = replace_each(self.body, replacer)
         for stmt in self.body:
             stmt.surrounding_loop = self
-    def populate_decls(self):
+    def populate_decls(self, possible_values = None):
+        possible_values = {} if possible_values is None else possible_values
         accesses = get_accesses(self)
         loop_vars = gather_loop_vars(gather_loop_shapes(get_loops(self)))
         undeclared = []
@@ -555,7 +556,21 @@ class Program(Node, LoopTrait):
         unique_undeclared.sort(key = lambda access: access.var)
         # sorted_unique_undeclared = sorted(unique_undeclared, lambda access: access.var)
         for access in unique_undeclared:
-            self.decls.append(Declaration(access.var, len(access.indices)))
+            sizes = []
+            n_dimensions = len(access.indices)
+            for dim in range(n_dimensions):
+                dim_size_key = f'{access.var}{"[]" *  (dim+1)}'
+                print(dim_size_key, dim_size_key in possible_values)
+                if dim_size_key not in possible_values:
+                    sizes.append(None)
+                    continue
+                dim_size = possible_values[dim_size_key]
+                if isinstance(dim_size, int):
+                    sizes.append(Literal(int, dim_size))
+                elif isinstance(dim_size, tuple):
+                    sizes.append(Literal(int, dim_size[1]))
+            decl = Declaration(access.var, len(access.indices), sizes)
+            self.decls.append(decl)
 
 def get_accesses(node, ignore_indices=False):
     accesses = set()
