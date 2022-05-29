@@ -108,7 +108,8 @@ class PopulateParameters:
         if family not in self.available:
             return node
 
-        assert(len(self.available[family]) > 0)
+        if len(self.available[family]) == 0:
+            return node.clone()
 
         choice_function = self.choice_functions[family]
         chosen = choice_function(self.available[family])
