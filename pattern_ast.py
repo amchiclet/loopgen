@@ -588,7 +588,6 @@ def get_accesses(node, ignore_indices=False):
         accesses.add(node)
         if ignore_indices:
             return accesses
-
         for index in node.indices:
             accesses.update(get_accesses(index, ignore_indices))
         return accesses
@@ -617,6 +616,49 @@ def get_accesses(node, ignore_indices=False):
         return accesses
     else:
         raise RuntimeError('Unhandled type of node ' + str(type(node)))
+
+def count_ops(node):
+    if isinstance(node, Assignment):
+        return count_ops(node.lhs) + count_ops(node.rhs)
+    elif isinstance(node, NoOp):
+        return 0
+    elif isinstance(node, StatementHole):
+        return 0
+    elif isinstance(node, ExpressionHole):
+        return 0
+    elif isinstance(node, Access):
+        n_ops = 0
+        for index in node.indices:
+            n_ops += count_ops(index)
+        return n_ops
+    elif isinstance(node, Op):
+        n_ops = 1
+        for arg in node.args:
+            n_ops += count_ops(arg)
+        return n_ops
+    elif isinstance(node, LoopShape):
+        n_ops = 0
+        n_ops += count_ops(node.greater_eq)
+        for expr in node.less_eq:
+            n_ops += count_ops(expr)
+        n_ops += count_ops(node.step)
+        return n_ops
+    elif isinstance(node, AbstractLoop):
+        n_ops = 0
+        for shape in node.loop_shapes:
+            n_ops += count_ops(shape)
+        for stmt in node.body:
+            n_ops += count_ops(stmt)
+        return n_ops
+    elif isinstance(node, Program):
+        n_ops = 0
+        for stmt in node.body:
+            n_ops += count_ops(stmt)
+        return n_ops
+    elif isinstance(node, Literal):
+        return 0
+    else:
+        raise RuntimeError('count_ops: unhandled type of node ' + str(type(node)))
 
 def get_ordered_assignments(node):
     if isinstance(node, Assignment):
