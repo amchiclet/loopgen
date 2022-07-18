@@ -15,6 +15,8 @@ class Mapping:
         self.choices = choices
         self.is_finite = is_finite
         self.choice_function = choice
+    def __str__(self):
+        return f'{self.family_name} = {{{",".join([str(c) for c in self.choices])}}}'
 
 class Skeleton:
     def __init__(self, code):
