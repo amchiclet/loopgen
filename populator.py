@@ -88,7 +88,9 @@ class PopulateParameters:
             self.add('_', default_choices, is_finite=is_finite, choice_function=choice_function)
 
     def add(self, family_name, choices, is_finite=False, choice_function=random.choice):
-        assert(family_name not in self.available)
+        if (family_name in self.available):
+            print(f'{family_name} already exists')
+            exit(1)
         self.set(family_name, choices, is_finite, choice_function)
 
     def set(self, family_name, choices, is_finite=False, choice_function=random.choice):
