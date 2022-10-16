@@ -78,7 +78,7 @@ class Skeleton:
             possible_values = config.possible_values
         self.program.populate_decls(possible_values)
 
-        instance = try_create_instance(self.program, var_map, type_assignment)
+        instance = try_create_instance(self.program, var_map, type_assignment, config.force)
         Path(config.output_dir).mkdir(parents=True, exist_ok=True)
 
         import pattern_ast
@@ -101,3 +101,4 @@ class CodegenConfig:
         self.template_dir = None
         self.array_as_ptr = False
         self.array_size_depends_on_possible_values = False
+        self.force = False

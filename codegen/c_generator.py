@@ -167,13 +167,23 @@ class CGenerator:
         else:
             return []
 
+    def determine_min_indices(self, decl):
+        min_indices = []
+        for analyzed_bound in self.access_bounds[decl.name].min_indices:
+            if analyzed_bound is None:
+                min_index = 0
+            else:
+                min_index = analyzed_bound
+            min_indices.append(min_index)
+        return min_indices
+
     def determine_max_indices(self, decl):
         max_indices = []
         for declared_size, analyzed_bound in zip(decl.sizes, self.access_bounds[decl.name].max_indices):
-            if type(declared_size) == Literal:
-                max_index = analyzed_bound
-            else:
+            if analyzed_bound is None:
                 max_index = Op('-', [declared_size.clone(), Literal(int, 1)]).pprint()
+            else:
+                max_index = analyzed_bound
             max_indices.append(max_index)
         return max_indices
 
@@ -198,7 +208,8 @@ class CGenerator:
             else:
                 name = decl.name
             return f'{self.no_indent()}{access(name, loop_vars)} = {val};'
-        begins = self.access_bounds[decl.name].min_indices
+
+        begins = self.determine_min_indices(decl)
         ends = [[max_index] for max_index in self.determine_max_indices(decl)]
         lines.append(self.nested_loops(begins, ends, generate_body))
         return '\n'.join(lines)

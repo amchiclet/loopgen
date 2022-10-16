@@ -56,10 +56,10 @@ def generate_bound_constraints(decls, cvars, var_map):
 class Instance:
     def __init__(self, pattern, array_access_bounds):
         self.pattern = pattern
+
         for name, bound in array_access_bounds.items():
             decl = next(d for d in pattern.decls if d.name == name)
             for dim, max_index in enumerate(bound.max_indices):
-                # size = max_index + 1
                 if decl.sizes[dim] is None:
                     decl.sizes[dim] = plus_one(max_index)
         self.array_access_bounds = array_access_bounds
@@ -91,14 +91,24 @@ def replace_constant_variables_blindly(pattern, var_map):
     cloned.consts = []
     return cloned
 
-def try_create_instance(pattern, var_map, types):
+def try_create_instance(pattern, var_map, types, force):
     l = logger
 
     random_pattern = replace_constant_variables_blindly(pattern, var_map)
+    accesses = get_accesses(random_pattern)
+
+    if force:
+        bounds = {}
+        for decl in random_pattern.decls:
+            for size in decl.sizes:
+                assert(size is not None)
+            bound = ArrayAccessBound(decl.name, decl.is_local, decl.n_dimensions)
+            bounds[decl.name] = bound
+        assign_types(random_pattern, types)
+        return Instance(random_pattern, bounds)
 
     cvars = get_int_cvars(random_pattern, types)
-    print(cvars)
-    accesses = get_accesses(random_pattern)
+
     cloned_var_map = var_map.clone()
 
     # Set array sizes in var map
