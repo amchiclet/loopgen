@@ -29,7 +29,7 @@ class Node:
         raise NotImplementedError(type(self))
     def precedence(self):
         raise NotImplementedError(type(self))
-    def replace(self, replacer):
+    def replace(self, replacer, dfs=False):
         raise NotImplementedError(type(self))
     def pprint(self):
         raise NotImplementedError(type(self))
@@ -47,8 +47,8 @@ class Const(Node):
         return Const(self.name, self.attributes.copy())
     def is_syntactically_equal(self, other):
         return type(other) == Const and self.name == other.name
-    def replace(self, replacer):
-        self.name = replace(self.name, replacer)
+    def replace(self, replacer, dfs=False):
+        self.name = replace(self.name, replacer, dfs)
 
 class Declaration(Node):
     def __init__(self, name, n_dimensions, sizes=None, is_local=False, ty=None, attributes=None):
@@ -79,9 +79,9 @@ class Declaration(Node):
             self.is_local == other.is_local and
             self.sizes == other.sizes
         )
-    def replace(self, replacer):
-        self.name = replace(self.name, replacer)
-        self.sizes = replace_each(self.sizes, replacer)
+    def replace(self, replacer, dfs=False):
+        self.name = replace(self.name, replacer, dfs)
+        self.sizes = replace_each(self.sizes, replacer, dfs)
 
 class Literal(Node):
     def __init__(self, ty, val, attributes=None):
@@ -94,9 +94,9 @@ class Literal(Node):
         return Literal(self.ty, self.val, self.attributes.copy())
     def is_syntactically_equal(self, other):
         return self.ty == other.ty and self.val == other.val
-    def replace(self, replacer):
-        self.ty = replace(self.ty, replacer)
-        self.val = replace(self.val, replacer)
+    def replace(self, replacer, dfs=False):
+        self.ty = replace(self.ty, replacer, dfs)
+        self.val = replace(self.val, replacer, dfs)
     def dep_print(self, refs):
         return f'{self.val}'
 
@@ -114,10 +114,10 @@ class Hex(Literal):
         return (type(other) == Hex and
                 self.ty == other.ty and
                 self.val == other.val)
-    def replace(self, replacer):
-        self.ty = replace(self.ty, replacer)
-        self.val = replace(self.val, replacer)
-        self.str_val = replace(self.str_val, replacer)
+    def replace(self, replacer, dfs=False):
+        self.ty = replace(self.ty, replacer, dfs)
+        self.val = replace(self.val, replacer, dfs)
+        self.str_val = replace(self.str_val, replacer, dfs)
     def dep_print(self, refs):
         return f'{self.str_val}'
 
@@ -134,7 +134,7 @@ class NoOp(Node):
         return NoOp()
     def is_syntactically_equal(self, other):
         return type(other) == NoOp
-    def replace(self, replacer):
+    def replace(self, replacer, dfs=False):
         pass
     def clone(self):
         return NoOp(self.attributes.copy())
@@ -164,14 +164,18 @@ class Assignment(Node):
             self.lhs.is_syntactically_equal(other.lhs) and
             self.rhs.is_syntactically_equal(other.rhs)
         )
-    def replace(self, replacer):
-        self.lhs, self.rhs = replace_each([self.lhs, self.rhs], replacer)
+    def replace(self, replacer, dfs=False):
+        self.lhs, self.rhs = replace_each([self.lhs, self.rhs], replacer, dfs)
         for access in get_accesses(self):
             access.parent_stmt = self
             for index in access.indices:
                 index.parent_stmt = self
 
-def replace(i, replacer):
+def replace(i, replacer, dfs=False):
+    if dfs:
+        if isinstance(i, Node):
+            i.replace(replacer, dfs)
+
     if replacer.should_skip(i):
         return i
 
@@ -179,13 +183,14 @@ def replace(i, replacer):
     if replacer.should_replace(i):
         return replacer.replace(i)
 
-    if isinstance(i, Node):
-        i.replace(replacer)
+    if not dfs:
+        if isinstance(i, Node):
+            i.replace(replacer, dfs)
 
     return i
 
-def replace_each(l, replacer):
-    return [replace(i, replacer) for i in l]
+def replace_each(l, replacer, dfs=False):
+    return [replace(i, replacer, dfs) for i in l]
 
 class Access(Node):
     def __init__(self, var, indices=None, attributes=None):
@@ -220,9 +225,9 @@ class Access(Node):
             self.var == other.var and
             is_list_syntactically_equal(self.indices, other.indices)
         )
-    def replace(self, replacer):
-        self.var = replace(self.var, replacer)
-        self.indices = replace_each(self.indices, replacer)
+    def replace(self, replacer, dfs=False):
+        self.var = replace(self.var, replacer, dfs)
+        self.indices = replace_each(self.indices, replacer, dfs)
 
 class LoopShapeBuilder:
     def __init__(self):
@@ -319,11 +324,11 @@ class LoopShape(Node):
             is_list_syntactically_equal(self.less_eq, other.less_eq) and
             self.step.is_syntactically_equal(other.step)
         )
-    def replace(self, replacer):
-        self.loop_var = replace(self.loop_var, replacer)
-        self.greater_eq = replace(self.greater_eq, replacer)
-        self.less_eq = replace_each(self.less_eq, replacer)
-        self.step = replace(self.step, replacer)
+    def replace(self, replacer, dfs=False):
+        self.loop_var = replace(self.loop_var, replacer, dfs)
+        self.greater_eq = replace(self.greater_eq, replacer, dfs)
+        self.less_eq = replace_each(self.less_eq, replacer, dfs)
+        self.step = replace(self.step, replacer, dfs)
 
 class LoopTrait():
     def find_stmt(self, stmt):
@@ -372,9 +377,9 @@ class AbstractLoop(Node, LoopTrait):
             is_list_syntactically_equal(self.loop_shapes, other.loop_shapes) and
             is_list_syntactically_equal(self.body, other.body)
         )
-    def replace(self, replacer):
-        self.loop_shapes = replace_each(self.loop_shapes, replacer)
-        self.body = replace_each(self.body, replacer)
+    def replace(self, replacer, dfs=False):
+        self.loop_shapes = replace_each(self.loop_shapes, replacer, dfs)
+        self.body = replace_each(self.body, replacer, dfs)
         for stmt in self.body:
             stmt.surrounding_loop = self
 
@@ -448,8 +453,8 @@ class Op(Node):
             self.op == other.op and
             is_list_syntactically_equal(self.args, other.args)
         )
-    def replace(self, replacer):
-        self.args = replace_each(self.args, replacer)
+    def replace(self, replacer, dfs=False):
+        self.args = replace_each(self.args, replacer, dfs)
 
 def plus_one(expr):
     if type(expr) == int:
@@ -527,11 +532,11 @@ class Program(Node, LoopTrait):
         self.body += cloned.body
         for stmt in cloned.body:
             stmt.surrounding_loop = self
-    def replace(self, replacer):
-        self.decls = replace_each(self.decls, replacer)
-        self.consts = replace_each(self.consts, replacer)
-        self.loop_shapes = replace_each(self.loop_shapes, replacer)
-        self.body = replace_each(self.body, replacer)
+    def replace(self, replacer, dfs=False):
+        self.decls = replace_each(self.decls, replacer, dfs)
+        self.consts = replace_each(self.consts, replacer, dfs)
+        self.loop_shapes = replace_each(self.loop_shapes, replacer, dfs)
+        self.body = replace_each(self.body, replacer, dfs)
         for stmt in self.body:
             stmt.surrounding_loop = self
     def populate_decls(self, possible_values = None):
@@ -752,6 +757,51 @@ class VarRenamer(Replacer):
     def replace(self, node):
         return self.replace_map[node]
 
+def is_zero(node):
+    return type(node) == Literal and node.ty == int and node.val == 0
+
+def is_one(node):
+    return type(node) == Literal and node.ty == int and node.val == 1
+
+class Times0(Replacer):
+    def should_skip(self, node):
+        return False
+    def should_replace(self, node):
+        if type(node) != Op or node.op != '*':
+            return False
+        return is_zero(node.args[0]) or is_zero(node.args[1])
+    def replace(self, node):
+        return Literal(int, 0)
+
+class Plus0(Replacer):
+    def should_skip(self, node):
+        return False
+    def should_replace(self, node):
+        if type(node) != Op or node.op != '+':
+            return False
+        return is_zero(node.args[0]) or is_zero(node.args[1])
+    def replace(self, node):
+        if is_zero(node.args[0]):
+            return node.args[1].clone()
+        return node.args[0].clone()
+
+class Times1(Replacer):
+    def should_skip(self, node):
+        return False
+    def should_replace(self, node):
+        if type(node) != Op or node.op != '*':
+            return False
+        return is_one(node.args[0]) or is_one(node.args[1])
+    def replace(self, node):
+        if is_one(node.args[0]):
+            return node.args[1].clone()
+        return node.args[0].clone()
+
+def simplify_0s_and_1s(node):
+    node.replace(Times0())
+    node.replace(Times1(), dfs=True)
+    node.replace(Plus0(), dfs=True)
+
 def gather_surrounding_loops(stmt):
     def recurse(s, acc):
         outer = s.surrounding_loop
@@ -783,7 +833,7 @@ class Hole(Node):
 class NameHole(Hole):
     def pprint(self, indent=0):
         return '_'
-    def replace(self, replacer):
+    def replace(self, replacer, dfs=False):
         pass
     def clone(self):
         return NameHole(self.hole_name, self.family_name)
@@ -792,7 +842,7 @@ class StatementHole(Hole):
     def pprint(self, indent=0):
         ws = space_per_indent * indent * ' '
         return f'{ws}${self.hole_name}:{self.family_name}$'
-    def replace(self, replacer):
+    def replace(self, replacer, dfs=False):
         pass
     def clone(self):
         return StatementHole(self.hole_name, self.family_name)
@@ -800,7 +850,7 @@ class StatementHole(Hole):
 class ExpressionHole(Hole):
     def pprint(self, indent=0):
         return f'#{self.hole_name}:{self.family_name}#'
-    def replace(self, replacer):
+    def replace(self, replacer, dfs=False):
         pass
     def clone(self):
         return ExpressionHole(self.hole_name, self.family_name)
@@ -808,7 +858,7 @@ class ExpressionHole(Hole):
 class OpHole(Hole, Op):
     def pprint(self, indent=0):
         return '@'
-    def replace(self, replacer):
+    def replace(self, replacer, dfs=False):
         pass
     def clone(self):
         return OpHole(self.hole_name, self.family_name)
