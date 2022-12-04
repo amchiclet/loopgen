@@ -622,9 +622,9 @@ def get_accesses(node, ignore_indices=False):
     else:
         raise RuntimeError('Unhandled type of node ' + str(type(node)))
 
-def count_ops(node):
+def count_ops(node, ignore_indices=False):
     if isinstance(node, Assignment):
-        return count_ops(node.lhs) + count_ops(node.rhs)
+        return count_ops(node.lhs, ignore_indices) + count_ops(node.rhs, ignore_indices)
     elif isinstance(node, NoOp):
         return 0
     elif isinstance(node, StatementHole):
@@ -632,33 +632,35 @@ def count_ops(node):
     elif isinstance(node, ExpressionHole):
         return 0
     elif isinstance(node, Access):
+        if ignore_indices:
+            return 0
         n_ops = 0
         for index in node.indices:
-            n_ops += count_ops(index)
+            n_ops += count_ops(index, ignore_indices)
         return n_ops
     elif isinstance(node, Op):
         n_ops = 1
         for arg in node.args:
-            n_ops += count_ops(arg)
+            n_ops += count_ops(arg, ignore_indices)
         return n_ops
     elif isinstance(node, LoopShape):
         n_ops = 0
-        n_ops += count_ops(node.greater_eq)
+        n_ops += count_ops(node.greater_eq, ignore_indices)
         for expr in node.less_eq:
-            n_ops += count_ops(expr)
-        n_ops += count_ops(node.step)
+            n_ops += count_ops(expr, ignore_indices)
+        n_ops += count_ops(node.step, ignore_indices)
         return n_ops
     elif isinstance(node, AbstractLoop):
         n_ops = 0
         for shape in node.loop_shapes:
-            n_ops += count_ops(shape)
+            n_ops += count_ops(shape, ignore_indices)
         for stmt in node.body:
-            n_ops += count_ops(stmt)
+            n_ops += count_ops(stmt, ignore_indices)
         return n_ops
     elif isinstance(node, Program):
         n_ops = 0
         for stmt in node.body:
-            n_ops += count_ops(stmt)
+            n_ops += count_ops(stmt, ignore_indices)
         return n_ops
     elif isinstance(node, Literal):
         return 0
