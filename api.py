@@ -30,7 +30,7 @@ class Skeleton:
     def __str__(self):
         return self.program.pprint()
 
-    def fill(self, mappings, parse_function, populate_function):
+    def fill(self, mappings, parse_function, populate_function, matching_function):
         populator = PopulateParameters()
         for mapping in mappings:
             parsed = [parse_function(choice) for choice in mapping.choices]
@@ -38,12 +38,17 @@ class Skeleton:
                           parsed,
                           mapping.is_finite,
                           mapping.choice_function)
-        populated = populate_function(self.program.clone(), populator.populate)
+        populated = populate_function(self.program.clone(), populator.populate, matching_function)
         return Skeleton(populated)
-    def fill_expressions(self, mappings):
-        return self.fill(mappings, parse_expr_str, populate_expr)
-    def fill_statements(self, mappings):
-        return self.fill(mappings, parse_stmt_str, populate_stmt)
+
+    # matching_function takes in two family names
+    # 1) the node's family name
+    # 2) the family name specified in mappings
+    # and returns True iff they are considered a match.
+    def fill_expressions(self, mappings, matching_function=None):
+        return self.fill(mappings, parse_expr_str, populate_expr, matching_function)
+    def fill_statements(self, mappings, matching_function=None):
+        return self.fill(mappings, parse_stmt_str, populate_stmt, matching_function)
 
     # Single threaded
     def generate_code(self, config):

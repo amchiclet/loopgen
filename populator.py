@@ -76,6 +76,9 @@ class ChoiceFactoryEnumerator:
             self.n_enumerated += 1
             self.current_position += 1
 
+def families_are_equal(node_family, mapping_family):
+    return node_family == mapping_family
+
 # TODO: Store the choices made (probably as a list of integers).
 #       This is useful for naming generated programs and debugging purposes.
 class PopulateParameters:
@@ -99,7 +102,10 @@ class PopulateParameters:
         if is_finite:
             self.finite_families.add(family_name)
 
-    def populate(self, node):
+    def populate(self, node, matches=None):
+        if matches is None:
+            matches = families_are_equal
+
         name = node.hole_name
         family = node.family_name
         full_name = f'{name}:{family}'
@@ -107,46 +113,52 @@ class PopulateParameters:
         if name != '_' and full_name in self.assigned:
             return self.assigned[full_name]
 
-        if family not in self.available:
+        matching_family = None
+        for available_family in self.available:
+            if matches(family, available_family):
+                matching_family = available_family
+
+        if matching_family is None:
             return node
 
-        if len(self.available[family]) == 0:
+        if len(self.available[matching_family]) == 0:
             return node.clone()
 
-        choice_function = self.choice_functions[family]
-        chosen = choice_function(self.available[family])
+        choice_function = self.choice_functions[matching_family]
+        chosen = choice_function(self.available[matching_family])
         if name != '_':
             self.assigned[full_name] = chosen
-        if family in self.finite_families:
-            self.available[family].remove(chosen)
+        if matching_family in self.finite_families:
+            self.available[matching_family].remove(chosen)
 
         return chosen.clone()
 
-def populate_name(program, populate_function):
-    replacer = NamePopulator(populate_function)
+def populate_name(program, populate_function, matching_function=None):
+    replacer = NamePopulator(populate_function, matching_function)
     return replace(program, replacer)
 
-def populate_stmt(program, populate_function):
-    replacer = StatementPopulator(populate_function)
+def populate_stmt(program, populate_function, matching_function=None):
+    replacer = StatementPopulator(populate_function, matching_function)
     return replace(program, replacer)
 
-def populate_expr(program, populate_function):
-    replacer = ExpressionPopulator(populate_function)
+def populate_expr(program, populate_function, matching_function=None):
+    replacer = ExpressionPopulator(populate_function, matching_function)
     return replace(program, replacer)
 
-def populate_op(program, populate_function):
-    replacer = OpPopulator(populate_function)
+def populate_op(program, populate_function, matching_function=None):
+    replacer = OpPopulator(populate_function, matching_function)
     return replace(program, replacer)
 
 class Populator(Replacer):
-    def __init__(self, populate_function):
+    def __init__(self, populate_function, matching_function):
         self.populate_function = populate_function
+        self.matching_function = matching_function
     def should_skip(self, node):
         return type(node) in [Declaration, Const]
     def should_replace(self, node):
         raise NotImplementedError('Populator::should_replace')
     def replace(self, node):
-        return self.populate_function(node)
+        return self.populate_function(node, self.matching_function)
 
 class StatementPopulator(Populator):
     def should_replace(self, node):
