@@ -1,4 +1,4 @@
-from pattern import parse_str, parse_stmt_str, parse_expr_str
+# from pattern import parse_str
 from instance import try_create_instance
 from constant_assignment import VariableMap
 from type_assignment import TypeAssignment
@@ -6,6 +6,7 @@ from codegen.c_generator import generate_code
 from populator import PopulateParameters, populate_stmt, populate_expr
 from random import randint
 from pathlib import Path
+from api import Skeleton, Mapping, CodegenConfig
 
 ############################
 # Step 1: Prepare skeleton #
@@ -66,56 +67,52 @@ for [(i, >=#_:low#, <=#_:high#), (j, >=#_:low#, <=#_:high#)] {
 """
 
 # Parse string so we have an AST that can be used later.
-skeleton = parse_str(skeleton_code)
-print(skeleton.pprint())
+skeleton = Skeleton(skeleton_code)
+print(skeleton)
 
 ######################################
 # Step 2: Fill in the skeleton holes #
 ######################################
 
 # First, let's populate the statement holes
-def populate_stmts(node):
+def populate_stmts(skeleton):
     # Possible statements for family s1
-    stmts1 = [parse_stmt_str(s) for s in ['A[i][j] = A[i][j] + 5.0;',
-                                          'B[i][j] = B[i][j] + 5.0;',
-                                          'C[i][j] = C[i][j] + 5.0;']]
+    stmts1 = ['A[i][j] = A[i][j] + 5.0;',
+              'B[i][j] = B[i][j] + 5.0;',
+              'C[i][j] = C[i][j] + 5.0;']
     # Possible statements for family s2
-    stmts2 = [parse_stmt_str(s) for s in ['A[i][j] = B[i][j] + C[i][j];',
-                                          'B[i][j] = A[i][j] + C[i][j];',
-                                          'C[i][j] = A[i][j] + B[i][j];']]
+    stmts2 = ['A[i][j] = B[i][j] + C[i][j];',
+              'B[i][j] = A[i][j] + C[i][j];',
+              'C[i][j] = A[i][j] + B[i][j];']
 
     # Tell the library to use stmts1 as the statement pool for s1 and
     # stmts2 as the pool for s2
-    params = PopulateParameters()
-    params.add('s1', stmts1)
-    params.add('s2', stmts2)
+    mappings = [
+        Mapping('s1', stmts1),
+        Mapping('s2', stmts2),
+    ]
 
-    # populate_stmt populates the statement holes in the skeleton The
-    # function expects a skeleton and the populating function.
-    # If the user uses PopulateParameters, they can use
-    # PopulateParameters.populate as the populating function.
-    return populate_stmt(skeleton, params.populate)
+    # fill_statements populates the statement holes in the skeleton.
+    return skeleton.fill_statements(mappings)
 
 skeleton = populate_stmts(skeleton)
-print(skeleton.pprint())
+print(skeleton)
 
-# Next, let's populate the expression holes
+# Next, let's populate the expression holes.
+# This is similar to how we populate statements.
 def populate_exprs(skeleton):
-    # The use can choose not to use PopulateParameters and write a
-    # populating function directly.
-    def populate(node):
-        if node.family_name == 'low':
-            return parse_expr_str(str(randint(0, 500)))
-        elif node.family_name == 'high':
-            return parse_expr_str(str(randint(500, 1000)))
-        else:
-            return parse_expr_str(str(randint(0, 1000)))
-    # Use the function above to populate the expressions in the
-    # skeleton.
-    return populate_expr(skeleton, populate)
+    low = [f'{randint(0, 500)}' for _ in range(3)]
+    high = [f'{randint(500, 1000)}' for _ in range(3)]
+
+    mappings = [
+        Mapping('low', low),
+        Mapping('high', high)
+    ]
+
+    return skeleton.fill_expressions(mappings)
 
 skeleton = populate_exprs(skeleton)
-print(skeleton.pprint())
+print(skeleton)
 
 ##################################
 # Step 3: Generate the C program #
@@ -132,7 +129,7 @@ print(skeleton.pprint())
 #
 # Variable map specifies what's the possible range of values of
 # variables. With this information, the library can analyze the
-# program to determine the array sizes and check for validity..
+# program to determine the array sizes and check for validity.
 #
 # For example, suppose we have the program
 #
@@ -146,39 +143,54 @@ print(skeleton.pprint())
 # to have size at least 51. Also if N is less than 101, there can be
 # an array out of bound and the program is invalid.
 
-# Variable maps let us specify variable values.
+config = CodegenConfig()
+
+# config.possible_values lets us specify variable values.
 # In this case we fix I to 800 and J to 1100, but we can also specify
 # ranges.
-var_map = VariableMap()
-var_map.set_value('I', 800)
-var_map.set_value('J', 900)
+config.possible_values = {
+    'I': 1800,
+    'J': 1500,
+}
 
-# TypeAssignment assigns types to variables.
-types = TypeAssignment(default_types=['int'])
-types.set('A', 'double')
-types.set('B', 'double')
-types.set('C', 'double')
+# config.types assigns types to variables.
+config.types = {
+    'A': 'double',
+    'B': 'double',
+    'C': 'double',
+}
 
-# try_create_instance analyzes the array sizes and validity.
-# If it can prove that the program is invalid, it will return None.
-instance = try_create_instance(skeleton, var_map, types)
-print(instance.pprint())
-
-# Finally generate C code. Here we specify how values are initialized
-# in the C code.
+# Next, we specify how values are initialized in the C code with
+# config.initial_values.
 #
 # Note that I and J need to match up with what we specified in
-# VariableMap above. In other words, we promised the library that I
-# and J will have these values and it said that the program is valid,
-# so we should actually use these values when initializing I and J.
-init_value_map = {
+# config.possible_values above. In other words, we promised the
+# library that I and J will have these values and it said that the
+# program is valid, so we should actually use these values when
+# initializing I and J.
+config.initial_values = {
     'A': 'drand(0.0, 1.0)',
     'B': 'drand(0.0, 1.0)',
     'C': 'drand(0.0, 1.0)',
-    'I': '800',
-    'J': '900',
+    'I': '1800',
+    'J': '1500',
 }
 
-dst_dir = 'output'
-Path(dst_dir).mkdir(parents=True, exist_ok=True)
-generate_code(dst_dir, instance, init_value_map=init_value_map, template_dir='codegen')
+# The library uses templated strings to generate C code and provides
+# some templates.  Here we use codelet-template-int-inputs as the
+# template. The actualy template can be viewed by going to that
+# directory. The template allows the generated program to accept int
+# parameters from the command line. For this example, inputs from the
+# command line are not used though.
+config.template_dir = 'codelet-template-int-inputs'
+
+# Finally, specify the output directory.
+config.output_dir = 'output'
+
+skeleton.generate_code(config)
+
+# Some C code should now be generated at the directory output.
+# Assuming you have gcc,
+# $ cd output
+# $ make
+# $ ./run
