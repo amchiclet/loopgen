@@ -1,11 +1,4 @@
-# from pattern import parse_str
-from instance import try_create_instance
-from constant_assignment import VariableMap
-from type_assignment import TypeAssignment
-from codegen.c_generator import generate_code
-from populator import PopulateParameters, populate_stmt, populate_expr
 from random import randint
-from pathlib import Path
 from api import Skeleton, Mapping, CodegenConfig
 
 ############################
