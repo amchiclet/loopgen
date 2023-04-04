@@ -131,6 +131,10 @@ class PopulateParameters:
         if matching_family in self.finite_families:
             self.available[matching_family].remove(chosen)
 
+        # For OpHoles, they're replaced by strings (should have a better design, yeah)
+        # So the chosen op isn't a node and can't be cloned
+        if not isinstance(chosen, Node):
+            return chosen
         return chosen.clone()
 
 def populate_name(program, populate_function, matching_function=None):

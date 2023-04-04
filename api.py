@@ -1,6 +1,6 @@
 from pattern import parse_str, parse_stmt_str, parse_expr_str, Program
 from pattern_ast import get_accesses
-from populator import PopulateParameters, populate_stmt, populate_expr
+from populator import PopulateParameters, populate_stmt, populate_expr, populate_op
 from constant_assignment import VariableMap
 from random import choice
 from instance import try_create_instance
@@ -49,6 +49,11 @@ class Skeleton:
         return self.fill(mappings, parse_expr_str, populate_expr, matching_function)
     def fill_statements(self, mappings, matching_function=None):
         return self.fill(mappings, parse_stmt_str, populate_stmt, matching_function)
+    def fill_operations(self, mappings, matching_function=None):
+        # An op is just a string. Return it.
+        def parse_op(s):
+            return s
+        return self.fill(mappings, parse_op, populate_op, matching_function)
 
     # Single threaded
     def generate_code(self, config):

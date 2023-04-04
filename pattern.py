@@ -66,6 +66,7 @@ grammar = '''
     ADDITIVE: "+" | "-"
     MULTIPLICATIVE: "*" | "/" | "%"
     UNARY: "+" | "-" | "!" | "~"
+
     op_hole: "@" CNAME (":" CNAME)? "@"
 
     HEX_NUMBER: /0x[\\da-f]*/i

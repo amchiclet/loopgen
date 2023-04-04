@@ -454,6 +454,8 @@ class Op(Node):
             is_list_syntactically_equal(self.args, other.args)
         )
     def replace(self, replacer, dfs=False):
+        if type(self.op) == OpHole:
+            self.op = replace(self.op, replacer, dfs)
         self.args = replace_each(self.args, replacer, dfs)
 
 def plus_one(expr):
