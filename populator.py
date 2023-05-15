@@ -1,6 +1,11 @@
 import random
 from pattern_ast import Replacer, Const, Declaration, Node, replace, ExpressionHole, StatementHole, OpHole, NameHole
-from math import prod
+
+def prod(arr):
+    p = 1
+    for i in arr:
+        p *= i
+    return p
 
 class IncrementalChoice:
     def __init__(self):
