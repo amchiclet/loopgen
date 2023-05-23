@@ -65,11 +65,11 @@ def determine_array_access_bounds(decls, accesses, cvars, constraints, var_map, 
             access_constraints = [cexpr == dim_var_cexpr for cexpr in related_cexprs[dim_var]]
             access_constraints = Or(access_constraints)
             index_analysis_constraints = constraints + [access_constraints]
-            l.info(f'index analysis constraints\n{index_analysis_constraints}')
+            l.debug(f'index analysis constraints\n{index_analysis_constraints}')
             min_index, max_index = find_min_max(index_analysis_constraints, dim_var_cexpr)
             if min_index is None or max_index is None:
                 return None
-            l.info(f'Found: min_index({min_index}) max_index({max_index})')
+            l.debug(f'Found: min_index({min_index}) max_index({max_index})')
             if size is not None:
                 size_cexpr = expr_to_cexpr(size, cvars)
                 assert(size_cexpr is not None)
