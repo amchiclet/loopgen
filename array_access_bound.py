@@ -8,12 +8,21 @@ class ArrayAccessBound:
         self.min_indices = [None] * n_dimensions
         self.max_indices = [None] * n_dimensions
         self.n_dimensions = n_dimensions
+        self.is_dynamic = False
     def new_min_index(self, dim, index):
+        if self.is_dynamic:
+            return
         if self.min_indices[dim] is None or index < self.min_indices[dim]:
             self.min_indices[dim] = index
     def new_max_index(self, dim, index):
+        if self.is_dynamic:
+            return
         if self.max_indices[dim] is None or index > self.max_indices[dim]:
             self.max_indices[dim] = index
+    def fix_size(self, dim, size):
+        self.is_dynamic = True
+        self.min_indices[dim] = 0
+        self.max_indices[dim] = size
     def set_unaccessed_dimensions_to_default(self):
         for dim in range(self.n_dimensions):
             current_min = self.min_indices[dim]
@@ -26,6 +35,8 @@ class ArrayAccessBound:
         brackets = [f'[{min_index}, {max_index}]'
                     for min_index, max_index in zip(self.min_indices, self.max_indices)]
         return f'{self.name}{"".join(brackets)}'
+    def __str__(self):
+        return self.pprint()
 
 def dimension_var(var, dimension):
     return f'{var}{"[]"*(dimension+1)}'
@@ -41,12 +52,18 @@ def determine_array_access_bounds(decls, accesses, cvars, constraints, var_map, 
     for decl in decls:
         bound = ArrayAccessBound(decl.name, decl.is_local, decl.n_dimensions)
         bounds[decl.name] = bound
+        # If the size expr is already set, use it
+        for dimension in range(decl.n_dimensions):
+            size = decl.sizes[dimension]
+            if size is not None:
+                bound.fix_size(dimension, size)
 
     related_cexprs = {}
     for decl in decls:
         for dimension in range(decl.n_dimensions):
             dim_var = dimension_var(decl.name, dimension)
             related_cexprs[dim_var] = []
+
     for access in accesses:
         for dimension, index in enumerate(access.indices):
             dim_var = dimension_var(access.var, dimension)
@@ -74,7 +91,7 @@ def determine_array_access_bounds(decls, accesses, cvars, constraints, var_map, 
                 size_cexpr = expr_to_cexpr(size, cvars)
                 assert(size_cexpr is not None)
                 must_be_unsat = constraints + [size_cexpr <= max_index]
-                if is_sat(must_be_unsat):
+                if is_sat(must_be_unsat, print_model=True):
                     l.warning(f'It is possible that {max_index} >= {size}, causing an out-of-bound error')
                     return None
             bound = bounds[decl.name]
@@ -83,4 +100,6 @@ def determine_array_access_bounds(decls, accesses, cvars, constraints, var_map, 
 
     for bound in bounds.values():
         bound.set_unaccessed_dimensions_to_default()
+    for bound in bounds.values():
+        l.debug(bound)
     return bounds

@@ -145,9 +145,13 @@ def find_min(constraints, expr, l = None):
 def find_min_max(constraints, i):
     return [f(constraints, i) for f in [find_min, find_max]]
 
-def is_sat(constraints):
+def is_sat(constraints, print_model=False):
     solver = Solver()
     solver.set('timeout', 10000)
     solver.add(constraints)
     status = solver.check()
+    if print_model:
+        if status == sat:
+            logger.debug(f'Model:\n{solver.model()}')
+
     return status == sat
