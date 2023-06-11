@@ -1,5 +1,6 @@
 from z3_utils import expr_to_cexpr, get_scalar_cvars, find_min_max, is_sat
 from z3 import Int, Or
+from pattern_ast import Op, Literal
 
 class ArrayAccessBound:
     def __init__(self, name, is_local, n_dimensions):
@@ -56,7 +57,10 @@ def determine_array_access_bounds(decls, accesses, cvars, constraints, var_map, 
         for dimension in range(decl.n_dimensions):
             size = decl.sizes[dimension]
             if size is not None:
-                bound.fix_size(dimension, size)
+                # For a given size in the declaration A[M] the max
+                # index is M-1.
+                size_minus_one = Op('-', [size.clone(), Literal(int, 1)])
+                bound.fix_size(dimension, size_minus_one)
 
     related_cexprs = {}
     for decl in decls:
